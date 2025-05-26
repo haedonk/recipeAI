@@ -5,6 +5,7 @@ import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
+import com.haekitchenapp.recipeapp.model.response.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
 import com.haekitchenapp.recipeapp.utility.RecipeMapper;
@@ -13,9 +14,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.awt.print.Pageable;
 import java.util.List;
 
 @Service
@@ -43,8 +46,8 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
     }
 
-    public ResponseEntity<ApiResponse<List<Recipe>>> searchByTitle(String title) throws RecipeSearchFoundNoneException {
-        List<Recipe> recipes = search(title);
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> searchByTitle(String title) throws RecipeSearchFoundNoneException {
+        List<RecipeTitleDto> recipes = search(title);
         log.info("Recipes found: {}", recipes.size());
         if (recipes.isEmpty()) {
             throw new RecipeSearchFoundNoneException("No recipes found with title: " + title);
@@ -52,18 +55,18 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
     }
 
-    public List<Recipe> search(String title) throws  RecipeSearchFoundNoneException {
-        log.info("Searching recipes by title: {}", title);
+    public List<RecipeTitleDto> search(String title) throws RecipeSearchFoundNoneException {
+        log.info("Searching recipe titles by title: {}", title);
         if (title == null || title.isBlank()) {
             throw new IllegalArgumentException("Title must not be null or empty");
         }
-        List<Recipe> recipes =  recipeRepository.findByTitleContainingIgnoreCase(title);
+        PageRequest pageRequest = PageRequest.of(0, 20);
+        List<RecipeTitleDto> recipes = recipeRepository.findTitlesByTitleContainingIgnoreCase(title, pageRequest);
         if(recipes.isEmpty()) {
             log.warn("No recipes found with title: {}", title);
             throw new RecipeSearchFoundNoneException("No recipes found with title: " + title);
-        } else {
-            log.info("Found {} recipes with title: {}", recipes.size(), title);
         }
+        log.info("Found {} recipe titles matching: {}", recipes.size(), title);
         return recipes;
     }
 

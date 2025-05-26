@@ -5,6 +5,7 @@ import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
+import com.haekitchenapp.recipeapp.model.response.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +49,7 @@ public class Controller {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<List<Recipe>>> searchRecipesByTitle(@RequestParam String title) throws RecipeSearchFoundNoneException {
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> searchRecipesByTitle(@RequestParam String title) throws RecipeSearchFoundNoneException {
         log.info("Received request to search recipes by title: {}", title);
         return recipeService.searchByTitle(title);
     }

@@ -58,4 +58,6 @@ out/
 
 ### VS Code ###
 .vscode/
->>>>>>> 63621e6 (Initial commit)
+
+### Application Properties ###
+src/main/resources/application-default.yml

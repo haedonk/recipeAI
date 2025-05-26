@@ -4,6 +4,12 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 6      # Max number of connections in the pool
+      minimum-idle: 2            # Minimum idle connections
+      idle-timeout: 30000        # Time in ms before an idle connection is removed
+      connection-timeout: 30000  # Max time in ms to wait for a connection
+      max-lifetime: 1800000
 
   jpa:
     hibernate:

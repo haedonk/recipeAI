@@ -30,13 +30,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RecipeService {
 
-    @Autowired
     private final RecipeRepository recipeRepository;
 
-    @Autowired
     private final IngredientRepository ingredientRepository;
 
-    @Autowired
     private final RecipeMapper recipeMapper;
 
     public ResponseEntity<ApiResponse<List<Recipe>>> findAll() throws RecipeNotFoundException {
@@ -161,7 +158,6 @@ public class RecipeService {
      * Deletes a recipe by its ID.
      *
      * @param id the ID of the recipe to delete
-     * @return
      * @throws IllegalArgumentException if no recipe is found with the given ID
      */
 
@@ -181,6 +177,7 @@ public class RecipeService {
      * This method is used to clear the recipe database.
      * @return a ResponseEntity containing an ApiResponse indicating success
      */
+    @Transactional
     public ResponseEntity<ApiResponse<Object>> deleteAll() {
         log.info("Deleting all recipes");
         deleteAllRecipes();

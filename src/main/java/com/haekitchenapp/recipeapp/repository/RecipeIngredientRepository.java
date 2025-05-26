@@ -10,13 +10,4 @@ public interface RecipeIngredientRepository extends JpaRepository<RecipeIngredie
 
     @NonNull
     Optional<RecipeIngredient> findById(@NonNull Long id);
-
-    Optional<RecipeIngredient> findByIdAndRecipeId(Long id, Long recipeId);
-
-    void deleteByIdAndRecipeId(Long id, Long recipeId);
-
-    boolean existsByIdAndRecipeId(Long id, Long recipeId);
-
-    Optional<RecipeIngredient> findByIngredientNameAndRecipeId(String ingredientName, Long recipeId);
-
 }

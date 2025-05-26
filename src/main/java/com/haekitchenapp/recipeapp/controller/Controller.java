@@ -5,6 +5,7 @@ import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
+import com.haekitchenapp.recipeapp.model.response.RecipeBulkResponse;
 import com.haekitchenapp.recipeapp.model.response.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import jakarta.validation.Valid;
@@ -32,6 +33,13 @@ public class Controller {
         return recipeService.create(recipeRequest);
     }
 
+    // Bulk create endpoint
+    @PostMapping("/bulk")
+    public ResponseEntity<ApiResponse<List<Recipe>>> createRecipes(@RequestBody @Valid List<RecipeRequest> recipeRequests) {
+        log.info("Received request to create multiple recipes: {}", recipeRequests);
+        return recipeService.createBulk(recipeRequests);
+    }
+
     // Update endpoints
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Recipe>> updateRecipe(@PathVariable Long id, @RequestBody @Valid RecipeRequest recipeRequest) {
@@ -42,6 +50,12 @@ public class Controller {
 
 
     // Get endpoints
+    @GetMapping("/numberOfRecipes/{page}")
+    public ResponseEntity<ApiResponse<RecipeBulkResponse>> getNumberOfRecipes(@PathVariable int page) throws RecipeNotFoundException {
+        log.info("Received request to get the number of recipes");
+        return recipeService.getNumberOfRecipes(page);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Recipe>> getRecipeById(@PathVariable Long id) throws RecipeNotFoundException {
         log.info("Received request to get recipe by ID: {}", id);

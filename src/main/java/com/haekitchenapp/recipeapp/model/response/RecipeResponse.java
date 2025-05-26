@@ -1,5 +1,6 @@
-package com.haekitchenapp.recipeapp.model.request;
+package com.haekitchenapp.recipeapp.model.response;
 
+import com.haekitchenapp.recipeapp.model.request.RecipeIngredientRequest;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -11,18 +12,15 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RecipeRequest {
+public class RecipeResponse {
     private Long id;
 
-    @NotBlank
     private String title;
 
-    @NotBlank
     private String instructions;
 
     private String imageUrl;
 
-    @Size(min = 1, message = "At least one ingredient is required")
     private Set<RecipeIngredientRequest> ingredients;
 
     private Integer prepTime;

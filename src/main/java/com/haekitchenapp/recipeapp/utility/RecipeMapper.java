@@ -3,10 +3,13 @@ package com.haekitchenapp.recipeapp.utility;
 import com.haekitchenapp.recipeapp.entity.*;
 import com.haekitchenapp.recipeapp.model.request.RecipeIngredientRequest;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
+import com.haekitchenapp.recipeapp.model.response.RecipeBulkResponse;
+import com.haekitchenapp.recipeapp.model.response.RecipeResponse;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -62,5 +65,54 @@ public class RecipeMapper {
                 .map(ri -> new RecipeIngredientRequest(ri.getId(), ri.getIngredient().getName(), ri.getQuantity(), ri.getUnit()))
                 .collect(Collectors.toSet()));
         return toEntity(recipeRequest);
+    }
+
+    public RecipeResponse toRecipeResponse(Recipe recipe) {
+        RecipeResponse recipeResponse = new RecipeResponse();
+        recipeResponse.setId(recipe.getId());
+        recipeResponse.setTitle(recipe.getTitle());
+        recipeResponse.setInstructions(recipe.getInstructions());
+        recipeResponse.setPrepTime(recipe.getPrepTime());
+        recipeResponse.setCookTime(recipe.getCookTime());
+        recipeResponse.setServings(recipe.getServings());
+
+        Set<RecipeIngredientRequest> ingredients = recipe.getIngredients().stream()
+                .map(this::toRecipeIngredientRequest)
+                .collect(Collectors.toSet());
+
+        recipeResponse.setIngredients(ingredients);
+        return recipeResponse;
+    }
+
+    public RecipeBulkResponse toRecipeBulkResponse(List<Recipe> recipes, boolean isLastPage) {
+        List<RecipeResponse> recipeResponses = recipes.stream()
+                .map(recipe -> {
+                    RecipeResponse recipeResponse = new RecipeResponse();
+                    recipeResponse.setId(recipe.getId());
+                    recipeResponse.setTitle(recipe.getTitle());
+                    recipeResponse.setInstructions(recipe.getInstructions());
+                    recipeResponse.setPrepTime(recipe.getPrepTime());
+                    recipeResponse.setCookTime(recipe.getCookTime());
+                    recipeResponse.setServings(recipe.getServings());
+
+                    Set<RecipeIngredientRequest> ingredients = recipe.getIngredients().stream()
+                            .map(this::toRecipeIngredientRequest)
+                            .collect(Collectors.toSet());
+
+                    recipeResponse.setIngredients(ingredients);
+                    return recipeResponse;
+                })
+                .toList();
+
+        return new RecipeBulkResponse(recipeResponses, isLastPage);
+    }
+
+    private RecipeIngredientRequest toRecipeIngredientRequest(RecipeIngredient ri) {
+        return new RecipeIngredientRequest(
+                ri.getId(),
+                ri.getIngredient().getName(),
+                ri.getQuantity(),
+                ri.getUnit()
+        );
     }
 }

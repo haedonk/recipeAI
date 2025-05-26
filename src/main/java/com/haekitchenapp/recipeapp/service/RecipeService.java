@@ -5,6 +5,8 @@ import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
+import com.haekitchenapp.recipeapp.model.response.RecipeBulkResponse;
+import com.haekitchenapp.recipeapp.model.response.RecipeResponse;
 import com.haekitchenapp.recipeapp.model.response.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
@@ -14,11 +16,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.awt.print.Pageable;
 import java.util.List;
 
 @Service
@@ -55,6 +59,26 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
     }
 
+    public ResponseEntity<ApiResponse<RecipeBulkResponse>> getNumberOfRecipes(int page) throws RecipeNotFoundException {
+        log.info("Fetching all recipes with ingredients for page {}", page);
+        PageRequest pageable = PageRequest.of(page, 1000);
+        Page<Recipe> recipePage = recipeRepository.findAllWithIngredients(pageable);
+
+        if (recipePage.isEmpty()) {
+            log.warn("No recipes found with ingredients");
+            throw new RecipeNotFoundException("No more recipes found with ingredients");
+        }
+
+        List<RecipeResponse> recipeResponses = recipePage.getContent().stream()
+                .map(recipeMapper::toRecipeResponse)
+                .toList();
+
+        RecipeBulkResponse bulkResponse = new RecipeBulkResponse(recipeResponses, recipePage.isLast());
+
+        log.info("Found and mapped {} recipes with ingredients", recipePage.getContent().size());
+        return ResponseEntity.ok(ApiResponse.success("Recipes with ingredients retrieved successfully", bulkResponse));
+    }
+
     public List<RecipeTitleDto> search(String title) throws RecipeSearchFoundNoneException {
         log.info("Searching recipe titles by title: {}", title);
         if (title == null || title.isBlank()) {
@@ -80,11 +104,19 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipe retrieved successfully", recipe));
     }
 
-
-
-
-
-
+    public ResponseEntity<ApiResponse<List<Recipe>>> createBulk(List<@Valid RecipeRequest> recipes) {
+        log.info("Creating {} recipes in bulk", recipes.size());
+        if (recipes.isEmpty()) {
+            log.warn("No recipes provided for creation");
+            return ResponseEntity.ok(ApiResponse.success("No recipes to create"));
+        }
+        List<Recipe> savedRecipes = recipes.stream()
+                .map(recipeMapper::toEntity)
+                .map(this::saveRecipe)
+                .toList();
+        log.info("{} recipes created successfully", savedRecipes.size());
+        return ResponseEntity.ok(ApiResponse.success("Recipes created successfully", savedRecipes));
+    }
 
     public ResponseEntity<ApiResponse<Recipe>> create(RecipeRequest recipe) {
         if(recipe.getId() != null) recipe.setId(null); // Ensure ID is null for creation

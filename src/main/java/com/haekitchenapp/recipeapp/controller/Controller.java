@@ -3,6 +3,7 @@ package com.haekitchenapp.recipeapp.controller;
 import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
+import com.haekitchenapp.recipeapp.model.response.RecipeDetailsDto;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.RecipeBulkResponse;
@@ -67,6 +68,14 @@ public class Controller {
         log.info("Received request to search recipes by title: {}", title);
         return recipeService.searchByTitle(title);
     }
+
+
+    @GetMapping("/llm-details/{id}")
+    public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(@PathVariable Long id) throws RecipeNotFoundException {
+        log.info("Received request to get recipe details for ID: {}", id);
+        return recipeService.getRecipeDetails(id);
+    }
+
 
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<List<Recipe>>> getAllRecipes() throws RecipeNotFoundException {

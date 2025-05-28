@@ -4,21 +4,16 @@ import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
-import com.haekitchenapp.recipeapp.model.response.ApiResponse;
-import com.haekitchenapp.recipeapp.model.response.RecipeBulkResponse;
-import com.haekitchenapp.recipeapp.model.response.RecipeResponse;
-import com.haekitchenapp.recipeapp.model.response.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.model.response.*;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
 import com.haekitchenapp.recipeapp.utility.RecipeMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +31,12 @@ public class RecipeService {
 
     private final RecipeMapper recipeMapper;
 
+    /**
+     * Fetches all recipes from the repository.
+     *
+     * @return a response entity containing a list of all recipes
+     * @throws RecipeNotFoundException if no recipes are found
+     */
     public ResponseEntity<ApiResponse<List<Recipe>>> findAll() throws RecipeNotFoundException {
         log.info("Fetching all recipes");
         List<Recipe> recipes = recipeRepository.findAll();
@@ -47,6 +48,13 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
     }
 
+    /**
+     * Searches for recipes by title and returns a paginated response.
+     *
+     * @param title the title to search for
+     * @return a response entity containing a list of recipe titles matching the search criteria
+     * @throws RecipeSearchFoundNoneException if no recipes are found with the given title
+     */
     public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> searchByTitle(String title) throws RecipeSearchFoundNoneException {
         List<RecipeTitleDto> recipes = search(title);
         log.info("Recipes found: {}", recipes.size());
@@ -56,6 +64,13 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
     }
 
+    /**
+     * Fetches all recipes with their ingredients for a given page.
+     *
+     * @param page the page number to fetch
+     * @return a response entity containing a bulk response of recipes with ingredients
+     * @throws RecipeNotFoundException if no recipes are found for the given page
+     */
     public ResponseEntity<ApiResponse<RecipeBulkResponse>> getNumberOfRecipes(int page) throws RecipeNotFoundException {
         log.info("Fetching all recipes with ingredients for page {}", page);
         PageRequest pageable = PageRequest.of(page, 1000);
@@ -76,6 +91,14 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes with ingredients retrieved successfully", bulkResponse));
     }
 
+/**
+     * Searches for recipe titles containing the specified title.
+     *
+     * @param title the title to search for
+     * @return a list of recipe titles matching the search criteria
+     * @throws RecipeSearchFoundNoneException if no recipes are found with the given title
+     * @throws IllegalArgumentException if the title is null or empty
+     */
     public List<RecipeTitleDto> search(String title) throws RecipeSearchFoundNoneException {
         log.info("Searching recipe titles by title: {}", title);
         if (title == null || title.isBlank()) {
@@ -91,6 +114,36 @@ public class RecipeService {
         return recipes;
     }
 
+    /**
+     * Finds recipe details by ID, including ingredients.
+     *
+     * @param id the ID of the recipe to find
+     * @return the recipe details
+     * @throws RecipeNotFoundException if no recipe is found with the given ID
+     * @throws IllegalArgumentException if the ID is null
+     */
+    public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(Long id) throws RecipeNotFoundException {
+        log.info("Finding recipe details by ID: {}", id);
+        if (id == null) {
+            throw new IllegalArgumentException("Recipe ID must not be null");
+        }
+
+        Recipe recipeDetails = recipeRepository.findByIdWithIngredients(id)
+                .orElseThrow(() -> new RecipeNotFoundException("Recipe details not found with ID: " + id));
+
+        RecipeDetailsDto recipeDetailsDto = recipeMapper.toLlmDetailsDto(recipeDetails);
+
+        return ResponseEntity.ok(ApiResponse.success("Recipe details retrieved successfully", recipeDetailsDto));
+    }
+
+    /**
+     * Finds a recipe by its ID.
+     *
+     * @param id the ID of the recipe to find
+     * @return the found recipe
+     * @throws RecipeNotFoundException if no recipe is found with the given ID
+     * @throws IllegalArgumentException if the ID is null
+     */
     public ResponseEntity<ApiResponse<Recipe>> findById(Long id) throws RecipeNotFoundException {
         log.info("Finding recipe by ID: {}", id);
         if (id == null) {
@@ -101,6 +154,13 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipe retrieved successfully", recipe));
     }
 
+    /**
+     * Creates a bulk of recipes.
+     *
+     * @param recipes the list of recipes to create
+     * @return the list of created recipes
+     * @throws IllegalArgumentException if any recipe ID is not null or if a data integrity violation occurs
+     */
     public ResponseEntity<ApiResponse<List<Recipe>>> createBulk(List<@Valid RecipeRequest> recipes) {
         log.info("Creating {} recipes in bulk", recipes.size());
         if (recipes.isEmpty()) {
@@ -115,6 +175,13 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes created successfully", savedRecipes));
     }
 
+    /**
+     * Creates a new recipe.
+     *
+     * @param recipe the recipe to create
+     * @return the created recipe
+     * @throws IllegalArgumentException if the recipe ID is not null or if a data integrity violation occurs
+     */
     public ResponseEntity<ApiResponse<Recipe>> create(RecipeRequest recipe) {
         if(recipe.getId() != null) recipe.setId(null); // Ensure ID is null for creation
         Recipe saved = saveRecipe(recipeMapper.toEntity(recipe));
@@ -122,6 +189,13 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipe created successfully", saved));
     }
 
+    /**
+     * Saves a new recipe.
+     *
+     * @param recipe the recipe to save
+     * @return the saved recipe
+     * @throws IllegalArgumentException if the recipe data is invalid or if a data integrity violation occurs
+     */
     private Recipe saveRecipe(Recipe recipe) {
         log.info("Saving recipe: {}", recipe);
         try {
@@ -134,6 +208,13 @@ public class RecipeService {
         return recipe;
     }
 
+    /**
+     * Updates an existing recipe.
+     *
+     * @param recipe the recipe to update
+     * @return the updated recipe
+     * @throws IllegalArgumentException if the recipe ID is null or if no recipe is found with the given ID
+     */
     public ResponseEntity<ApiResponse<Recipe>> update(RecipeRequest recipe) {
         if(recipe.getId() == null) throw new IllegalArgumentException("Recipe ID must not be null for update");
         Recipe existingRecipe = recipeRepository.findById(recipe.getId())
@@ -143,6 +224,13 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipe created successfully", saved));
     }
 
+    /**
+     * Updates an existing recipe.
+     *
+     * @param recipe the recipe to update
+     * @return the updated recipe
+     * @throws IllegalArgumentException if the recipe data is invalid or if a data integrity violation occurs
+     */
     private Recipe updateRecipe(Recipe recipe) {
         log.info("Updating recipe: {}", recipe);
         try {
@@ -185,6 +273,10 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("All recipes deleted successfully"));
     }
 
+    /**
+     * Deletes all recipes from the repository.
+     * This method clears the child references before deleting to avoid integrity violations.
+     */
     public void deleteAllRecipes() {
         List<Recipe> recipes = recipeRepository.findAll();
         for (Recipe recipe : recipes) {

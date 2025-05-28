@@ -4,6 +4,7 @@ import com.haekitchenapp.recipeapp.entity.*;
 import com.haekitchenapp.recipeapp.model.request.RecipeIngredientRequest;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.RecipeBulkResponse;
+import com.haekitchenapp.recipeapp.model.response.RecipeDetailsDto;
 import com.haekitchenapp.recipeapp.model.response.RecipeResponse;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import lombok.RequiredArgsConstructor;
@@ -84,29 +85,6 @@ public class RecipeMapper {
         return recipeResponse;
     }
 
-    public RecipeBulkResponse toRecipeBulkResponse(List<Recipe> recipes, boolean isLastPage) {
-        List<RecipeResponse> recipeResponses = recipes.stream()
-                .map(recipe -> {
-                    RecipeResponse recipeResponse = new RecipeResponse();
-                    recipeResponse.setId(recipe.getId());
-                    recipeResponse.setTitle(recipe.getTitle());
-                    recipeResponse.setInstructions(recipe.getInstructions());
-                    recipeResponse.setPrepTime(recipe.getPrepTime());
-                    recipeResponse.setCookTime(recipe.getCookTime());
-                    recipeResponse.setServings(recipe.getServings());
-
-                    Set<RecipeIngredientRequest> ingredients = recipe.getIngredients().stream()
-                            .map(this::toRecipeIngredientRequest)
-                            .collect(Collectors.toSet());
-
-                    recipeResponse.setIngredients(ingredients);
-                    return recipeResponse;
-                })
-                .toList();
-
-        return new RecipeBulkResponse(recipeResponses, isLastPage);
-    }
-
     private RecipeIngredientRequest toRecipeIngredientRequest(RecipeIngredient ri) {
         return new RecipeIngredientRequest(
                 ri.getId(),
@@ -114,5 +92,13 @@ public class RecipeMapper {
                 ri.getQuantity(),
                 ri.getUnit()
         );
+    }
+
+    public RecipeDetailsDto toLlmDetailsDto(Recipe recipe) {
+        List<String> ingredients = recipe.getIngredients().stream()
+                .map(ri -> ri.getIngredient().getName())
+                .collect(Collectors.toList());
+
+        return new RecipeDetailsDto(recipe.getTitle(), ingredients, recipe.getInstructions());
     }
 }

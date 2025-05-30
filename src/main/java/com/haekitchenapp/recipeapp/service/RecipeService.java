@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -46,6 +47,25 @@ public class RecipeService {
         }
         log.info("Found {} recipes", recipes.size());
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
+    }
+
+    public ResponseEntity<ApiResponse<RecipeDuplicatesByTitleResponse>> findDuplicateTitles(int page) {
+        log.info("Finding duplicate recipe titles for page {}", page);
+        PageRequest pageable = PageRequest.of(page, 20);
+        Page<RecipeDuplicatesByTitleDto> duplicatesPage = recipeRepository.findDuplicateTitles(pageable);
+
+        if (duplicatesPage.isEmpty()) {
+            log.warn("No duplicate titles found");
+            return ResponseEntity.ok(ApiResponse.success("No more duplicate titles found"));
+        }
+
+        RecipeDuplicatesByTitleResponse recipeDuplicatesByTitleResponse = new RecipeDuplicatesByTitleResponse(
+                duplicatesPage.getContent(),
+                duplicatesPage.isLast()
+        );
+
+        log.info("Found {} duplicate titles", recipeDuplicatesByTitleResponse.getDuplicates().size());
+        return ResponseEntity.ok(ApiResponse.success("Duplicate titles retrieved successfully", recipeDuplicatesByTitleResponse));
     }
 
     /**
@@ -112,6 +132,20 @@ public class RecipeService {
         }
         log.info("Found {} recipe titles matching: {}", recipes.size(), title);
         return recipes;
+    }
+
+    public ResponseEntity<ApiResponse<List<Long>>> findAllIdsWithTitle(String title) throws RecipeNotFoundException {
+        log.info("Finding all recipe with title: {}", title);
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Title must not be null or empty");
+        }
+        List<Long> recipes = recipeRepository.findIdsByTitle(title);
+        if (recipes.isEmpty()) {
+            log.warn("No recipes ids found with title: {}", title);
+            throw new RecipeNotFoundException("No recipes ids found with title: " + title);
+        }
+        log.info("Found {} recipe ids with title: {}", recipes.size(), title);
+        return ResponseEntity.ok(ApiResponse.success("Recipes ids successfully", recipes));
     }
 
     /**
@@ -250,38 +284,34 @@ public class RecipeService {
      */
 
     public ResponseEntity<ApiResponse<Object>> deleteById(Long id) {
-        log.info("Deleting recipe by ID: {}", id);
-        if (!recipeRepository.existsById(id)) {
-            throw new IllegalArgumentException("Recipe not found with ID: " + id);
-        }
-        recipeRepository.deleteById(id);
-        log.info("Recipe deleted successfully with ID: {}", id);
+        deleteRecipeById(id);
         return ResponseEntity.ok(ApiResponse.success("Recipe deleted successfully"));
     }
 
 
-    /**
-     * Deletes all recipes from the repository.
-     * This method is used to clear the recipe database.
-     * @return a ResponseEntity containing an ApiResponse indicating success
-     */
     @Transactional
-    public ResponseEntity<ApiResponse<Object>> deleteAll() {
+    public ResponseEntity<ApiResponse<Object>> deleteRecipesIyIds(List<Long> ids) {
         log.info("Deleting all recipes");
-        deleteAllRecipes();
+        if (ids == null || ids.isEmpty()) {
+            log.warn("No recipe IDs provided for deletion");
+            return ResponseEntity.ok(ApiResponse.success("No recipes to delete"));
+        }
+        for (Long id : ids) {
+            if (id != null) {
+                try {
+                    deleteRecipeById(id);
+                } catch (Exception e) {
+                    log.error("Error deleting recipe with ID {}: {}", id, e.getMessage());
+                }
+            }
+        }
         log.info("All recipes deleted successfully");
         return ResponseEntity.ok(ApiResponse.success("All recipes deleted successfully"));
     }
 
-    /**
-     * Deletes all recipes from the repository.
-     * This method clears the child references before deleting to avoid integrity violations.
-     */
-    public void deleteAllRecipes() {
-        List<Recipe> recipes = recipeRepository.findAll();
-        for (Recipe recipe : recipes) {
-            recipe.getIngredients().clear(); // clear child references
-        }
-        recipeRepository.deleteAll(); // now safe to delete
+    private void deleteRecipeById(Long id) {
+        log.info("Deleting recipe by ID: {}", id);
+        recipeRepository.deleteById(id);
+        log.info("Recipe deleted successfully with ID: {}", id);
     }
 }

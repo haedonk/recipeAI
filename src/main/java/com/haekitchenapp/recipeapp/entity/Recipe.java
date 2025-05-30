@@ -11,7 +11,7 @@ import java.util.Set;
 @Getter
 @Setter
 @Table(name = "recipes")
-public class Recipe {
+public class Recipe extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

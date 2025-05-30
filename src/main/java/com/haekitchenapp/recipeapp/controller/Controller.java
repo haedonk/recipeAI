@@ -3,11 +3,8 @@ package com.haekitchenapp.recipeapp.controller;
 import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
-import com.haekitchenapp.recipeapp.model.response.RecipeDetailsDto;
+import com.haekitchenapp.recipeapp.model.response.*;
 import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
-import com.haekitchenapp.recipeapp.model.response.ApiResponse;
-import com.haekitchenapp.recipeapp.model.response.RecipeBulkResponse;
-import com.haekitchenapp.recipeapp.model.response.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -69,6 +66,12 @@ public class Controller {
         return recipeService.searchByTitle(title);
     }
 
+    @GetMapping("/findByTitle/{title}")
+    public ResponseEntity<ApiResponse<List<Long>>> findRecipeIdsByTitle(@PathVariable String title) throws RecipeNotFoundException {
+        log.info("Received request to find all recipes by title: {}", title);
+        return recipeService.findAllIdsWithTitle(title);
+    }
+
 
     @GetMapping("/llm-details/{id}")
     public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(@PathVariable Long id) throws RecipeNotFoundException {
@@ -76,20 +79,33 @@ public class Controller {
         return recipeService.getRecipeDetails(id);
     }
 
-
-    @GetMapping("/all")
-    public ResponseEntity<ApiResponse<List<Recipe>>> getAllRecipes() throws RecipeNotFoundException {
-        log.info("Received request to get all recipes");
-        return recipeService.findAll();
+    @GetMapping("/duplicates/{page}")
+    public ResponseEntity<ApiResponse<RecipeDuplicatesByTitleResponse>> getDuplicateRecipes(@PathVariable int page) {
+        log.info("Received request to get duplicate recipes");
+        return recipeService.findDuplicateTitles(page);
     }
+
+    // removing the all endpoint for now, its resource intensive and not needed for the current use case.
+//    @GetMapping("/all")
+//    public ResponseEntity<ApiResponse<List<Recipe>>> getAllRecipes() throws RecipeNotFoundException {
+//        log.info("Received request to get all recipes");
+//        return recipeService.findAll();
+//    }
 
 
 
     // Delete endpoints
-    @DeleteMapping("/deleteAll")
-    public ResponseEntity<ApiResponse<Object>> deleteAllRecipes() {
-        log.info("Received request to delete all recipes");
-        return recipeService.deleteAll();
+    // need to update to take a list.  Delete all is not a good idea, but for testing purposes it is ok.
+//    @DeleteMapping("/deleteAll")
+//    public ResponseEntity<ApiResponse<Object>> deleteAllRecipes() {
+//        log.info("Received request to delete all recipes");
+//        return recipeService.deleteAll();
+//    }
+
+    @PostMapping("/deleteList")
+    public ResponseEntity<ApiResponse<Object>> deleteRecipesByIds(@RequestBody List<Long> ids) {
+        log.info("Received request to delete recipes with IDs: {}", ids);
+        return recipeService.deleteRecipesIyIds(ids);
     }
 
     @DeleteMapping("/{id}")

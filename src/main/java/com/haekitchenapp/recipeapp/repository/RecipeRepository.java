@@ -14,13 +14,13 @@ import java.util.Optional;
 
 public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
-    @Query("SELECT r.id FROM Recipe r WHERE r.title = :title")
-    List<Long> findIdsByTitle(String title);
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.title = :title")
+    List<RecipeTitleDto> findIdsByTitle(String title);
 
     @Query("SELECT r FROM Recipe r LEFT JOIN FETCH r.ingredients ORDER BY r.id")
     Page<Recipe> findAllWithIngredients(Pageable pageable);
 
-    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.RecipeTitleDto(r.id, r.title) FROM Recipe r WHERE LOWER(r.title) LIKE LOWER(:title || '%')")
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.RecipeTitleDto(r.id, r.title) FROM Recipe r WHERE LOWER(r.title) LIKE LOWER(CONCAT('%', :title, '%'))")
     List<RecipeTitleDto> findTitlesByTitleContainingIgnoreCase(@Param("title") String title, Pageable pageable);
 
     @Query("SELECT r FROM Recipe r JOIN FETCH r.ingredients WHERE r.id = :id")

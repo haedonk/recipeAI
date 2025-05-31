@@ -134,12 +134,12 @@ public class RecipeService {
         return recipes;
     }
 
-    public ResponseEntity<ApiResponse<List<Long>>> findAllIdsWithTitle(String title) throws RecipeNotFoundException {
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findAllIdsWithTitle(String title) throws RecipeNotFoundException {
         log.info("Finding all recipe with title: {}", title);
         if (title == null || title.isBlank()) {
             throw new IllegalArgumentException("Title must not be null or empty");
         }
-        List<Long> recipes = recipeRepository.findIdsByTitle(title);
+        List<RecipeTitleDto> recipes = recipeRepository.findIdsByTitle(title);
         if (recipes.isEmpty()) {
             log.warn("No recipes ids found with title: {}", title);
             throw new RecipeNotFoundException("No recipes ids found with title: " + title);

@@ -67,7 +67,7 @@ public class Controller {
     }
 
     @GetMapping("/findByTitle/{title}")
-    public ResponseEntity<ApiResponse<List<Long>>> findRecipeIdsByTitle(@PathVariable String title) throws RecipeNotFoundException {
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findRecipeIdsByTitle(@PathVariable String title) throws RecipeNotFoundException {
         log.info("Received request to find all recipes by title: {}", title);
         return recipeService.findAllIdsWithTitle(title);
     }

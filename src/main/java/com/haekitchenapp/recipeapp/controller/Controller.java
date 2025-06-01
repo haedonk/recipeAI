@@ -72,6 +72,12 @@ public class Controller {
         return recipeService.findAllIdsWithTitle(title);
     }
 
+    @GetMapping("/findByTitle")
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findRecipeIdsByTitleByHeader(@RequestHeader("title") String title) throws RecipeNotFoundException {
+    log.info("Received request to find all recipes by title from header: {}", title);
+        return recipeService.findAllIdsWithTitle(title);
+    }
+
 
     @GetMapping("/llm-details/{id}")
     public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(@PathVariable Long id) throws RecipeNotFoundException {

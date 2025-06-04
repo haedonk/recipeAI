@@ -1,8 +1,8 @@
 package com.haekitchenapp.recipeapp.repository;
 
 import com.haekitchenapp.recipeapp.entity.Recipe;
-import com.haekitchenapp.recipeapp.model.response.RecipeDuplicatesByTitleDto;
-import com.haekitchenapp.recipeapp.model.response.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,19 +14,19 @@ import java.util.Optional;
 
 public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
-    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.title = :title")
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.title = :title")
     List<RecipeTitleDto> findIdsByTitle(String title);
 
     @Query("SELECT r FROM Recipe r LEFT JOIN FETCH r.ingredients ORDER BY r.id")
     Page<Recipe> findAllWithIngredients(Pageable pageable);
 
-    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.RecipeTitleDto(r.id, r.title) FROM Recipe r WHERE LOWER(r.title) LIKE LOWER(CONCAT('%', :title, '%'))")
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id, r.title) FROM Recipe r WHERE LOWER(r.title) LIKE LOWER(CONCAT('%', :title, '%'))")
     List<RecipeTitleDto> findTitlesByTitleContainingIgnoreCase(@Param("title") String title, Pageable pageable);
 
     @Query("SELECT r FROM Recipe r JOIN FETCH r.ingredients WHERE r.id = :id")
     Optional<Recipe> findByIdWithIngredients(@Param("id") Long id);
 
-    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.RecipeDuplicatesByTitleDto(r.title, COUNT(r.title)) " +
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto(r.title, COUNT(r.title)) " +
             "FROM Recipe r " +
             "GROUP BY r.title " +
             "HAVING COUNT(r.title) > 1 ORDER BY COUNT(r.title) DESC")

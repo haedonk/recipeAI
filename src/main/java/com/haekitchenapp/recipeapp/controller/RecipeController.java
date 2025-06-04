@@ -4,7 +4,11 @@ import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.response.*;
-import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
+import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeBulkResponse;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +23,7 @@ import java.util.List;
 @Validated
 @RequestMapping("/api/recipes")
 @Slf4j
-public class Controller {
+public class RecipeController {
 
     @Autowired
     private RecipeService recipeService;

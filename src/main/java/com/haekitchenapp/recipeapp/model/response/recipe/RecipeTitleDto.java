@@ -1,4 +1,4 @@
-package com.haekitchenapp.recipeapp.model.response;
+package com.haekitchenapp.recipeapp.model.response.recipe;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;

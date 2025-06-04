@@ -1,4 +1,4 @@
-package com.haekitchenapp.recipeapp.model.request;
+package com.haekitchenapp.recipeapp.model.request.recipe;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

@@ -24,6 +24,19 @@ spring:
       allowed-origins:
         - ${CORS_ALLOWED_ORIGIN}
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${EMAIL}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+
 
 #remove later
 logging:

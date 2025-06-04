@@ -1,6 +1,6 @@
 package com.haekitchenapp.recipeapp.controller;
 
-import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
+import com.haekitchenapp.recipeapp.exception.*;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +14,31 @@ public class Advice {
 
     @ExceptionHandler(RecipeNotFoundException.class)
     public ResponseEntity<ApiResponse<Object>> handleNotFound(RecipeNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UserEmailExistsException.class)
+    public ResponseEntity<ApiResponse<Object>> handleUserEmailExists(UserEmailExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiResponse<Object>> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+
+    @ExceptionHandler(InvalidValidationCodeException.class)
+    public ResponseEntity<ApiResponse<Object>> handleInvalidCredentials(InvalidValidationCodeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleUserNotFound(UserNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(ex.getMessage()));
     }

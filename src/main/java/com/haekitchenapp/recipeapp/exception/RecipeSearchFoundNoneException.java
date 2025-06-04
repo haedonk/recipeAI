@@ -1,6 +1,6 @@
 package com.haekitchenapp.recipeapp.exception;
 
-public class RecipeSearchFoundNoneException extends Throwable {
+public class RecipeSearchFoundNoneException extends RuntimeException  {
     public RecipeSearchFoundNoneException(String message) {
         super(message);
     }

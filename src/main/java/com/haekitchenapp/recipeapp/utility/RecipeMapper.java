@@ -1,11 +1,10 @@
 package com.haekitchenapp.recipeapp.utility;
 
 import com.haekitchenapp.recipeapp.entity.*;
-import com.haekitchenapp.recipeapp.model.request.RecipeIngredientRequest;
-import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
-import com.haekitchenapp.recipeapp.model.response.RecipeBulkResponse;
-import com.haekitchenapp.recipeapp.model.response.RecipeDetailsDto;
-import com.haekitchenapp.recipeapp.model.response.RecipeResponse;
+import com.haekitchenapp.recipeapp.model.request.recipe.RecipeIngredientRequest;
+import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

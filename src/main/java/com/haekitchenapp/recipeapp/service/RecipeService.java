@@ -3,8 +3,9 @@ package com.haekitchenapp.recipeapp.service;
 import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
-import com.haekitchenapp.recipeapp.model.request.RecipeRequest;
+import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
+import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
 import com.haekitchenapp.recipeapp.utility.RecipeMapper;
@@ -18,7 +19,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service

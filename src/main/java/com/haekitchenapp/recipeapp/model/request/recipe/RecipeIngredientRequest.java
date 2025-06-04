@@ -1,4 +1,4 @@
-package com.haekitchenapp.recipeapp.model.request;
+package com.haekitchenapp.recipeapp.model.request.recipe;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;

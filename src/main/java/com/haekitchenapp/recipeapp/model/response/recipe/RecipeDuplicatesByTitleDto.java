@@ -1,4 +1,4 @@
-package com.haekitchenapp.recipeapp.model.response;
+package com.haekitchenapp.recipeapp.model.response.recipe;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

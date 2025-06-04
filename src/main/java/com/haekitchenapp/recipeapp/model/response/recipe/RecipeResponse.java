@@ -1,8 +1,6 @@
-package com.haekitchenapp.recipeapp.model.response;
+package com.haekitchenapp.recipeapp.model.response.recipe;
 
-import com.haekitchenapp.recipeapp.model.request.RecipeIngredientRequest;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import com.haekitchenapp.recipeapp.model.request.recipe.RecipeIngredientRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

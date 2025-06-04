@@ -115,7 +115,7 @@ public class RecipeController {
     @PostMapping("/deleteList")
     public ResponseEntity<ApiResponse<Object>> deleteRecipesByIds(@RequestBody List<Long> ids) {
         log.info("Received request to delete recipes with IDs: {}", ids);
-        return recipeService.deleteRecipesIyIds(ids);
+        return recipeService.deleteRecipesByIds(ids);
     }
 
     @DeleteMapping("/{id}")

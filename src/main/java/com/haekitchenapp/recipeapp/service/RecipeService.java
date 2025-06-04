@@ -255,7 +255,7 @@ public class RecipeService {
                 .orElseThrow(() -> new IllegalArgumentException("Recipe not found with ID: " + recipe.getId()));
         Recipe saved = updateRecipe(recipeMapper.toEntity(existingRecipe, recipe));
         log.info("Recipe updated successfully: {}", saved);
-        return ResponseEntity.ok(ApiResponse.success("Recipe created successfully", saved));
+        return ResponseEntity.ok(ApiResponse.success("Recipe updated successfully", saved));
     }
 
     /**
@@ -290,7 +290,7 @@ public class RecipeService {
 
 
     @Transactional
-    public ResponseEntity<ApiResponse<Object>> deleteRecipesIyIds(List<Long> ids) {
+    public ResponseEntity<ApiResponse<Object>> deleteRecipesByIds(List<Long> ids) {
         log.info("Deleting all recipes");
         if (ids == null || ids.isEmpty()) {
             log.warn("No recipe IDs provided for deletion");

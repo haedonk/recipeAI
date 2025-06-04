@@ -22,6 +22,7 @@ public class RecipeMapper {
 
     public Recipe toEntity(RecipeRequest request) {
         Recipe recipe = new Recipe();
+        recipe.setId(request.getId());
         recipe.setTitle(request.getTitle());
         recipe.setInstructions(request.getInstructions());
         recipe.setPrepTime(request.getPrepTime());

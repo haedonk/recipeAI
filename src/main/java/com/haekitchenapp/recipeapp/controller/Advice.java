@@ -4,6 +4,7 @@ import com.haekitchenapp.recipeapp.exception.*;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -65,6 +66,12 @@ public class Advice {
     public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(Exception ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error("Invalid request: " + ex.getMessage()));
+    }
+
+    @ExceptionHandler({MailAuthenticationException.class})
+    public ResponseEntity<ApiResponse<Object>> handleMailAuthenticationException(MailAuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Email service error: " + ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

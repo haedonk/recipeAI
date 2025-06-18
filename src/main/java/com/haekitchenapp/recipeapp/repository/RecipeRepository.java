@@ -17,6 +17,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.title = :title")
     List<RecipeTitleDto> findIdsByTitle(String title);
 
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.id = :id")
+    Optional<RecipeTitleDto> findRecipeTitleDtoById(Long id);
+
     @Query("SELECT r FROM Recipe r LEFT JOIN FETCH r.ingredients ORDER BY r.id")
     Page<Recipe> findAllWithIngredients(Pageable pageable);
 

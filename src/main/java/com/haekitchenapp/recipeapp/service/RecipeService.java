@@ -179,12 +179,10 @@ public class RecipeService {
      * @throws IllegalArgumentException if the ID is null
      */
     public ResponseEntity<ApiResponse<Recipe>> findById(Long id) throws RecipeNotFoundException {
-        log.info("Finding recipe by ID: {}", id);
         if (id == null) {
             throw new IllegalArgumentException("Recipe ID must not be null");
         }
-        Recipe recipe = recipeRepository.findById(id)
-                .orElseThrow(() -> new RecipeNotFoundException("Recipe not found with ID: " + id));
+        Recipe recipe = findRecipeById(id);
         return ResponseEntity.ok(ApiResponse.success("Recipe retrieved successfully", recipe));
     }
 
@@ -313,5 +311,23 @@ public class RecipeService {
         log.info("Deleting recipe by ID: {}", id);
         recipeRepository.deleteById(id);
         log.info("Recipe deleted successfully with ID: {}", id);
+    }
+
+    public Recipe findRecipeById(Long id) {
+        log.info("Finding recipe by ID: {}", id);
+        if (id == null) {
+            throw new IllegalArgumentException("Recipe ID must not be null");
+        }
+        return recipeRepository.findById(id)
+                .orElse(null);
+    }
+
+    public RecipeTitleDto findRecipeTitleDtoById(Long id) {
+        log.info("Finding recipe title dto by ID: {}", id);
+        if (id == null) {
+            throw new IllegalArgumentException("Recipe ID must not be null");
+        }
+        return recipeRepository.findRecipeTitleDtoById(id)
+                .orElseThrow(() -> new RecipeNotFoundException("Recipe title dto not found with ID: " + id));
     }
 }

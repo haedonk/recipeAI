@@ -9,6 +9,7 @@ import com.haekitchenapp.recipeapp.model.response.batch.Status;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
+import com.haekitchenapp.recipeapp.repository.RecipeUpdateFailureRepository;
 import com.haekitchenapp.recipeapp.utility.RecipeMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,8 @@ import java.util.List;
 public class RecipeService {
 
     private final RecipeRepository recipeRepository;
+
+    private final RecipeUpdateFailureRepository recipeUpdateFailureRepository;
 
     private final RecipeMapper recipeMapper;
 
@@ -357,9 +360,11 @@ public class RecipeService {
     log.info("Fetching recipe massage details");
         long totalRecipes = recipeRepository.count();
         Long recipesWithEmbedding = recipeRepository.countByEmbeddingIsNotNull();
+        Long failedRecipes = recipeUpdateFailureRepository.count();
         Status status = new Status();
         status.setTotal(totalRecipes);
         status.setCompleted(recipesWithEmbedding);
+        status.setFailed(failedRecipes);
         status.setPercentage(
                 totalRecipes == 0 ? 0f : (float) recipesWithEmbedding / totalRecipes * 100
         );

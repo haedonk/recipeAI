@@ -40,4 +40,5 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
 
     Long countByEmbeddingIsNotNull();
+
 }

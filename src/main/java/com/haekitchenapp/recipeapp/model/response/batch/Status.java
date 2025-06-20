@@ -9,4 +9,5 @@ public class Status {
     private Long total;
     private Long completed;
     private Float percentage;
+    private Long failed;
 }

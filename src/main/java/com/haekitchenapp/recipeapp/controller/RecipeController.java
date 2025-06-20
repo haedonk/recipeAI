@@ -82,6 +82,12 @@ public class RecipeController {
         return recipeService.findAllIdsWithTitle(title);
     }
 
+    @GetMapping("/findByCreatedBy/{userId}")
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findRecipesByCreatedBy(@PathVariable Long userId) throws RecipeNotFoundException {
+        log.info("Received request to find recipes created by user ID: {}", userId);
+        return recipeService.findRecipeByCreatedBy(userId);
+    }
+
 
     @GetMapping("/llm-details/{id}")
     public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(@PathVariable Long id) throws RecipeNotFoundException {

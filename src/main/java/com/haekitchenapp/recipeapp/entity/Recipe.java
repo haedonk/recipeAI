@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -22,9 +23,15 @@ public class Recipe extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String instructions;
 
+    @Column(columnDefinition = "TEXT")
+    private String summary;
+
+    private List<Double> embedding;
+
     private Integer prepTime;
     private Integer cookTime;
     private Integer servings;
+    private Long createdBy;
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference

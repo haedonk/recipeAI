@@ -35,5 +35,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
             "HAVING COUNT(r.title) > 1 ORDER BY COUNT(r.title) DESC")
     Page<RecipeDuplicatesByTitleDto> findDuplicateTitles(Pageable pageable);
 
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.createdBy = :userId")
+    List<RecipeTitleDto> findTitlesByCreatedBy(Long userId);
+
+
 
 }

@@ -28,8 +28,6 @@ public class RecipeService {
 
     private final RecipeRepository recipeRepository;
 
-    private final IngredientRepository ingredientRepository;
-
     private final RecipeMapper recipeMapper;
 
     /**
@@ -186,6 +184,20 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipe retrieved successfully", recipe));
     }
 
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findRecipeByCreatedBy(Long userId){
+        log.info("Finding recipes created by user ID: {}", userId);
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID must not be null");
+        }
+        List<RecipeTitleDto> recipes = recipeRepository.findTitlesByCreatedBy(userId);
+        if (recipes.isEmpty()) {
+            log.warn("No recipes found for user ID: {}", userId);
+            throw new RecipeNotFoundException("No recipes found for user ID: " + userId);
+        }
+        log.info("Found {} recipes created by user ID: {}", recipes.size(), userId);
+        return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
+    }
+
     /**
      * Creates a bulk of recipes.
      *
@@ -263,7 +275,7 @@ public class RecipeService {
      * @return the updated recipe
      * @throws IllegalArgumentException if the recipe data is invalid or if a data integrity violation occurs
      */
-    private Recipe updateRecipe(Recipe recipe) {
+    public Recipe updateRecipe(Recipe recipe) {
         log.info("Updating recipe: {}", recipe);
         try {
             recipe = recipeRepository.save(recipe);
@@ -329,5 +341,14 @@ public class RecipeService {
         }
         return recipeRepository.findRecipeTitleDtoById(id)
                 .orElseThrow(() -> new RecipeNotFoundException("Recipe title dto not found with ID: " + id));
+    }
+
+    public Recipe getRecipeByIdWithIngredients(Long id) {
+    log.info("Fetching recipe by ID with ingredients: {}", id);
+        if (id == null) {
+            throw new IllegalArgumentException("Recipe ID must not be null");
+        }
+        return recipeRepository.findByIdWithIngredients(id)
+                .orElseThrow(() -> new RecipeNotFoundException("Recipe not found with ID: " + id));
     }
 }

@@ -46,7 +46,7 @@ public class UserService {
 
     public ResponseEntity<ApiResponse<UserResponseDto>> createUser(UserRequestDto dto) {
         log.info("Received request to create user: {}", dto);
-        if (getUserByEmail(dto.getEmail()).isPresent()) {
+        if (getUserByEmail(dto.getEmail().toLowerCase()).isPresent()) {
             log.error("User with email {} already exists", dto.getEmail());
             throw new UserEmailExistsException("User with this email already exists");
         }

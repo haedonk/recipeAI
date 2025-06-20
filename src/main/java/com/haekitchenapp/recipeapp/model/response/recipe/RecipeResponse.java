@@ -13,9 +13,13 @@ import java.util.Set;
 public class RecipeResponse {
     private Long id;
 
+    private Long createdBy;
+
     private String title;
 
     private String instructions;
+
+    private String summary;
 
     private String imageUrl;
 

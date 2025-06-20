@@ -22,8 +22,11 @@ public class RecipeMapper {
     public Recipe toEntity(RecipeRequest request) {
         Recipe recipe = new Recipe();
         recipe.setId(request.getId());
+        recipe.setCreatedBy(request.getCreatedBy());
         recipe.setTitle(request.getTitle());
         recipe.setInstructions(request.getInstructions());
+        recipe.setSummary(request.getSummary() != null ? request.getSummary() : "");
+        recipe.setEmbedding(request.getEmbedding() != null ? request.getEmbedding() : List.of());
         recipe.setPrepTime(request.getPrepTime());
         recipe.setCookTime(request.getCookTime());
         recipe.setServings(request.getServings());
@@ -41,7 +44,7 @@ public class RecipeMapper {
                 .findByNameIgnoreCase(riRequest.getName())
                 .orElseGet(() -> {
                     Ingredient newIng = new Ingredient();
-                    newIng.setName(riRequest.getName());
+                    newIng.setName(riRequest.getName().toLowerCase());
                     return ingredientRepository.save(newIng);
                 });
 
@@ -57,8 +60,11 @@ public class RecipeMapper {
     public Recipe toEntity(Recipe recipe, RecipeRequest request) {
         RecipeRequest recipeRequest = new RecipeRequest();
         recipeRequest.setId(recipe.getId());
+        recipeRequest.setCreatedBy(recipe.getCreatedBy());
         recipeRequest.setTitle(request.getTitle() != null ? request.getTitle() : recipe.getTitle());
         recipeRequest.setInstructions(request.getInstructions() != null ? request.getInstructions() : recipe.getInstructions());
+        recipeRequest.setSummary(request.getSummary() != null ? request.getSummary() : recipe.getSummary());
+        recipeRequest.setEmbedding(request.getEmbedding() != null ? request.getEmbedding() : recipe.getEmbedding());
         recipeRequest.setPrepTime(request.getPrepTime() != null ? request.getPrepTime() : recipe.getPrepTime());
         recipeRequest.setCookTime(request.getCookTime() != null ? request.getCookTime() : recipe.getCookTime());
         recipeRequest.setServings(request.getServings() != null ? request.getServings() : recipe.getServings());
@@ -71,8 +77,10 @@ public class RecipeMapper {
     public RecipeResponse toRecipeResponse(Recipe recipe) {
         RecipeResponse recipeResponse = new RecipeResponse();
         recipeResponse.setId(recipe.getId());
+        recipeResponse.setCreatedBy(recipe.getCreatedBy());
         recipeResponse.setTitle(recipe.getTitle());
         recipeResponse.setInstructions(recipe.getInstructions());
+        recipeResponse.setSummary(recipe.getSummary());
         recipeResponse.setPrepTime(recipe.getPrepTime());
         recipeResponse.setCookTime(recipe.getCookTime());
         recipeResponse.setServings(recipe.getServings());

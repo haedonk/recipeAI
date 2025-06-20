@@ -10,7 +10,7 @@ public class UserMapper {
 
     public User mapToUser(UserRequestDto userRequestDto) {
         User user = new User();
-        user.setEmail(userRequestDto.getEmail());
+        user.setEmail(userRequestDto.getEmail().toLowerCase());
         user.setPasswordHash(hashPassword(userRequestDto.getPassword()));
         return user;
     }

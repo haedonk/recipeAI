@@ -1,5 +1,6 @@
 package com.haekitchenapp.recipeapp.config.batch;
 
+import com.haekitchenapp.recipeapp.client.ApiRetryConfig;
 import com.haekitchenapp.recipeapp.entity.RecipeUpdateFailure;
 import com.haekitchenapp.recipeapp.exception.LlmApiException;
 import com.haekitchenapp.recipeapp.model.response.togetherAi.LlmResponse;
@@ -27,10 +28,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 import jakarta.persistence.EntityManagerFactory;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.haekitchenapp.recipeapp.utility.BatchValidation.*;
@@ -59,6 +62,9 @@ public class RecipeBatchJobConfig {
 
     @Autowired
     private RecipeUpdateFailureRepository recipeUpdateFailureRepository;
+
+    @Autowired
+    private ApiRetryConfig apiRetryConfig;
 
     @Bean
     public Job recipeUpdateJob() {
@@ -112,14 +118,19 @@ public class RecipeBatchJobConfig {
                 Duration startTime = Duration.ofMillis(System.currentTimeMillis());
                 Recipe recipe = recipeService.getRecipeByIdWithIngredients(id);
                 logTime("Fetched recipe with ID: " + id, startTime);
-                String rewritten = validateRewrittenInstructions(callLLMRewrite(recipe.getInstructions()));
+                String rewritten = apiRetryConfig.retryTemplate(() ->
+                                validateRewrittenInstructions(callLLMRewrite(recipe.getInstructions()),
+                                        recipe.getInstructions())).trim();
                 logTime("Rewritten instructions for recipe with ID: " + id, startTime);
-                String formattedTitle = validateTitle(callFormatTitle(recipe.getTitle()));
+                String formattedTitle = apiRetryConfig.retryTemplate(() ->
+                                validateTitle(callFormatTitle(recipe.getTitle()))).trim();
                 logTime("Formatted title for recipe with ID: " + id, startTime);
-                String summary = validateSummary(callLLMSummarize(rewritten));
+                String summary = apiRetryConfig.retryTemplate(() ->
+                                validateSummary(callLLMSummarize(rewritten))).trim();
                 logTime("Summarized instructions for recipe with ID: " + id, startTime);
                 String embedSummary = getFullSummary(recipe, summary);
-                List<Double> embedding = validateEmbedding(callEmbeddingAPI(embedSummary));
+                List<Double> embedding = apiRetryConfig.retryTemplate(() ->
+                                validateEmbedding(callEmbeddingAPI(embedSummary)));
                 logTime("Generated embedding for recipe with ID: " + id, startTime);
                 recipe.setTitle(formattedTitle);
                 recipe.setInstructions(rewritten);
@@ -180,7 +191,7 @@ public class RecipeBatchJobConfig {
                 throw new LlmApiException("Context not returned in the response");
             }
         } catch (Exception e) {
-            throw new LlmApiException("Error calling LLM rewrite: ", e);
+            throw new LlmApiException("Error calling LLM rewrite: " + e.getMessage(), e);
         }
     }
 
@@ -193,7 +204,7 @@ public class RecipeBatchJobConfig {
                 throw new LlmApiException("Context not returned in the response");
             }
         } catch (Exception e) {
-            throw new LlmApiException("Error calling LLM rewrite: ", e);
+            throw new LlmApiException("Error calling LLM rewrite: " + e.getMessage(), e);
         }
     }
 
@@ -206,7 +217,7 @@ public class RecipeBatchJobConfig {
                 throw new LlmApiException("Summary not returned in the response");
             }
         } catch (Exception e) {
-            throw new LlmApiException("Error calling LLM summarize: ", e);
+            throw new LlmApiException("Error calling LLM summarize: " + e.getMessage(), e);
         }
     }
 
@@ -219,7 +230,7 @@ public class RecipeBatchJobConfig {
                 throw new LlmApiException("Embedding not returned in the response");
             }
         } catch (Exception e) {
-            throw new LlmApiException("Error calling embedding API: ", e);
+            throw new LlmApiException("Error calling embedding API: " + e.getMessage(), e);
         }
     }
 }

@@ -3,6 +3,7 @@ package com.haekitchenapp.recipeapp.utility;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.text.Normalizer;
 import java.util.List;
 
 @NoArgsConstructor
@@ -15,7 +16,7 @@ public class BatchValidation {
         if (summary.length() < 40) {
             throw new IllegalArgumentException("Summary is too short: " + summary.length() + " chars");
         }
-        if (summary.length() > 500) {
+        if (summary.length() > 700) {
             throw new IllegalArgumentException("Summary is too long: " + summary.length() + " chars");
         }
         if (summary.toLowerCase().contains("lorem")) {
@@ -27,15 +28,17 @@ public class BatchValidation {
         return summary;
     }
 
-    public static String validateRewrittenInstructions(String text) {
+    public static String validateRewrittenInstructions(String text, String org) throws IllegalArgumentException {
         if (text == null) {
             throw new IllegalArgumentException("Rewritten instructions are null");
         }
-        if (text.length() <= 100) {
+        int originalLength = org != null ? org.length() : 0;
+        if (originalLength > 300 && text.length() <= 100) {
             throw new IllegalArgumentException("Rewritten instructions too short: " + text.length() + " chars");
         }
-        if (text.split("\\.").length < 3) {
-            throw new IllegalArgumentException("Rewritten instructions have too few sentences: " + text.split("\\.").length);
+        String[] sentences = text.split("\\.");
+        if (originalLength > 300 && sentences.length < 3) {
+            throw new IllegalArgumentException("Rewritten instructions have too few sentences: " + sentences.length);
         }
         if (text.toLowerCase().contains("null")) {
             throw new IllegalArgumentException("Rewritten instructions contain 'null'");
@@ -64,7 +67,7 @@ public class BatchValidation {
         if (title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("Title is empty or null");
         }
-
+        title = cleanTitle(title);
         if (title.length() < 4) {
             throw new IllegalArgumentException("Title is too short: " + title);
         }
@@ -73,8 +76,11 @@ public class BatchValidation {
             throw new IllegalArgumentException("Title is too long: " + title);
         }
 
-        if (!Character.isUpperCase(title.trim().charAt(0))) {
-            throw new IllegalArgumentException("Title must start with a capital letter: " + title);
+        String trimmedTitle = title.trim();
+        char firstChar = trimmedTitle.charAt(0);
+
+        if (!Character.isLetterOrDigit(firstChar)) {
+            throw new IllegalArgumentException("Title must start with a letter or number: " + title);
         }
 
         if (title.matches(".*[^a-zA-Z0-9\\s\\-,'&].*")) {
@@ -84,6 +90,26 @@ public class BatchValidation {
         if (title.toLowerCase().contains("lorem") || title.toLowerCase().contains("null")) {
             throw new IllegalArgumentException("Title contains placeholder or invalid terms: " + title);
         }
+        return title;
+    }
+
+    public static String cleanTitle(String title) {
+        // Remove content in parentheses
+        title = title.replaceAll("\\s*\\([^)]*\\)", "");
+
+        // Replace colons, semicolons, pipes, arrows with dash or space
+        title = title.replaceAll("[:;|=>]+", " -");
+
+        // Remove quotation marks
+        title = title.replace("\"", "").replace("'", "");
+
+        // Normalize accented characters
+        title = Normalizer.normalize(title, Normalizer.Form.NFD)
+                .replaceAll("[^\\p{ASCII}]", "");
+
+        // Collapse whitespace and trim
+        title = title.trim().replaceAll("\\s{2,}", " ");
+
         return title;
     }
 }

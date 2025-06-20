@@ -7,6 +7,7 @@ import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -33,18 +34,20 @@ public class RecipeBatchController {
     private RecipeService  recipeService;
 
     @PostMapping("/start")
-    public String startJob() {
+    public String launch(@RequestParam String modValues) {
         CompletableFuture.runAsync(() -> {
             try {
-                JobParameters params = new JobParametersBuilder()
-                        .addLong("startTime", System.currentTimeMillis())
+                JobParameters jobParameters = new JobParametersBuilder()
+                        .addString("modValues", modValues)
+                        .addLong("runId", System.currentTimeMillis())
                         .toJobParameters();
-                jobLauncher.run(recipeUpdateJob, params);
+
+                jobLauncher.run(recipeUpdateJob, jobParameters);
             } catch (Exception e) {
-                // log error
+                System.err.println("Job failed to start: " + e.getMessage());
             }
         });
-        return "Job started in background";
+        return "Job launched successfully. Check the status later.";
     }
 
     @PostMapping("/stop/{executionId}")

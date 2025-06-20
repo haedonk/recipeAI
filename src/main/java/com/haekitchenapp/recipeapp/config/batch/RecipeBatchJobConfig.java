@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import com.haekitchenapp.recipeapp.entity.Recipe;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
@@ -27,7 +28,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import jakarta.persistence.EntityManagerFactory;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.haekitchenapp.recipeapp.utility.BatchValidation.*;
 
@@ -70,7 +74,7 @@ public class RecipeBatchJobConfig {
         return new StepBuilder("recipeUpdateStep", jobRepository)
                 .<Long, Recipe>chunk(chunkSize, transactionManager)
                 .reader(recipeReader())
-                .processor(recipeProcessor())
+                .processor(recipeProcessor(null))
                 .writer(this::updateRecipes)
                 .faultTolerant()
                 .skip(LlmApiException.class)
@@ -80,6 +84,7 @@ public class RecipeBatchJobConfig {
     }
 
     @Bean
+    @StepScope
     public JpaPagingItemReader<Long> recipeReader() {
         return new JpaPagingItemReaderBuilder<Long>()
                 .name("recipeReader")
@@ -90,9 +95,20 @@ public class RecipeBatchJobConfig {
     }
 
     @Bean
-    public ItemProcessor<Long, Recipe> recipeProcessor() {
+    @StepScope
+    public ItemProcessor<Long, Recipe> recipeProcessor(
+            @Value("#{jobParameters['modValues']}") String modValues) {
+        log.info("Recipe processor initialized with mod values: {}", modValues);
+        Set<Integer> allowedMods = Arrays.stream(modValues.split(","))
+                .map(String::trim)
+                .map(Integer::parseInt)
+                .collect(Collectors.toSet());
         return id -> {
             try{
+                if (!allowedMods.contains((int) (id % 10))) {
+                    log.info("Skipping recipe with ID {} due to mod value", id);
+                    return null; // skip recipe
+                }
                 Duration startTime = Duration.ofMillis(System.currentTimeMillis());
                 Recipe recipe = recipeService.getRecipeByIdWithIngredients(id);
                 logTime("Fetched recipe with ID: " + id, startTime);
@@ -109,7 +125,7 @@ public class RecipeBatchJobConfig {
                 recipe.setInstructions(rewritten);
                 recipe.setSummary(summary);
                 recipe.setEmbedding(embedding);
-                return recipe;
+                return null;
             } catch (LlmApiException e) {
                 log.error("Error processing recipe {}: {}", id, e.getMessage());
                 addFailedRecordToFailureRepository(id, e.getMessage());

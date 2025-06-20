@@ -1,5 +1,7 @@
 package com.haekitchenapp.recipeapp.controller;
 
+import com.haekitchenapp.recipeapp.model.response.batch.Status;
+import com.haekitchenapp.recipeapp.service.RecipeService;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -26,6 +28,9 @@ public class RecipeBatchController {
 
     @Autowired
     private JobExplorer jobExplorer;
+
+    @Autowired
+    private RecipeService  recipeService;
 
     @PostMapping("/start")
     public String startJob() {
@@ -60,5 +65,10 @@ public class RecipeBatchController {
         } catch (Exception e) {
             return "Failed to get job status: " + e.getMessage();
         }
+    }
+
+    @GetMapping("/status")
+    public Status getAllJobStatuses() {
+        return recipeService.getRecipeMassageDetails();
     }
 }

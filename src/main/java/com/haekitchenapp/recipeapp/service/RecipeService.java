@@ -5,6 +5,7 @@ import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
+import com.haekitchenapp.recipeapp.model.response.batch.Status;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
@@ -350,5 +351,18 @@ public class RecipeService {
         }
         return recipeRepository.findByIdWithIngredients(id)
                 .orElseThrow(() -> new RecipeNotFoundException("Recipe not found with ID: " + id));
+    }
+
+    public Status getRecipeMassageDetails() {
+    log.info("Fetching recipe massage details");
+        long totalRecipes = recipeRepository.count();
+        Long recipesWithEmbedding = recipeRepository.countByEmbeddingIsNotNull();
+        Status status = new Status();
+        status.setTotal(totalRecipes);
+        status.setCompleted(recipesWithEmbedding);
+        status.setPercentage(
+                totalRecipes == 0 ? 0f : (float) recipesWithEmbedding / totalRecipes * 100
+        );
+        return status;
     }
 }

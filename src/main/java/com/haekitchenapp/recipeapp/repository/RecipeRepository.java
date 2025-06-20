@@ -39,5 +39,5 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     List<RecipeTitleDto> findTitlesByCreatedBy(Long userId);
 
 
-
+    Long countByEmbeddingIsNotNull();
 }

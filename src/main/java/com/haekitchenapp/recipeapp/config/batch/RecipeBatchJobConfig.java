@@ -125,7 +125,7 @@ public class RecipeBatchJobConfig {
                 recipe.setInstructions(rewritten);
                 recipe.setSummary(summary);
                 recipe.setEmbedding(embedding);
-                return null;
+                return recipe;
             } catch (LlmApiException e) {
                 log.error("Error processing recipe {}: {}", id, e.getMessage());
                 addFailedRecordToFailureRepository(id, e.getMessage());

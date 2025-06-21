@@ -28,12 +28,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 import jakarta.persistence.EntityManagerFactory;
 
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.haekitchenapp.recipeapp.utility.BatchValidation.*;
@@ -118,22 +116,26 @@ public class RecipeBatchJobConfig {
                 Duration startTime = Duration.ofMillis(System.currentTimeMillis());
                 Recipe recipe = recipeService.getRecipeByIdWithIngredients(id);
                 logTime("Fetched recipe with ID: " + id, startTime);
-                String rewritten = apiRetryConfig.retryTemplate(() ->
-                                validateRewrittenInstructions(callLLMRewrite(recipe.getInstructions()),
-                                        recipe.getInstructions())).trim();
-                logTime("Rewritten instructions for recipe with ID: " + id, startTime);
+                boolean shouldBeUpdated = apiRetryConfig.retryTemplate(() ->
+                        getShouldInstructionsBeUpdated(getFullSummary(recipe, recipe.getInstructions()), id));
+                logTime("Checked if recipe with ID: " + id + " should be updated", startTime);
+                log.info("Recipe instructions with ID {} should be updated: {}", id, shouldBeUpdated);
+                String instructions = shouldBeUpdated ? apiRetryConfig.retryTemplate(() ->
+                        validateRewrittenInstructions(callLLMRewrite(recipe.getInstructions(), id),
+                                recipe.getInstructions())).trim() : recipe.getInstructions();
+                if(shouldBeUpdated) logTime("Rewritten instructions for recipe with ID: " + id, startTime);
                 String formattedTitle = apiRetryConfig.retryTemplate(() ->
-                                validateTitle(callFormatTitle(recipe.getTitle()))).trim();
+                                validateTitle(callFormatTitle(recipe.getTitle(), id))).trim();
                 logTime("Formatted title for recipe with ID: " + id, startTime);
                 String summary = apiRetryConfig.retryTemplate(() ->
-                                validateSummary(callLLMSummarize(rewritten))).trim();
+                                validateSummary(callLLMSummarize(instructions, id))).trim();
                 logTime("Summarized instructions for recipe with ID: " + id, startTime);
                 String embedSummary = getFullSummary(recipe, summary);
                 List<Double> embedding = apiRetryConfig.retryTemplate(() ->
-                                validateEmbedding(callEmbeddingAPI(embedSummary)));
+                                validateEmbedding(callEmbeddingAPI(embedSummary, id)));
                 logTime("Generated embedding for recipe with ID: " + id, startTime);
                 recipe.setTitle(formattedTitle);
-                recipe.setInstructions(rewritten);
+                recipe.setInstructions(instructions);
                 recipe.setSummary(summary);
                 recipe.setEmbedding(embedding);
                 return recipe;
@@ -182,9 +184,23 @@ public class RecipeBatchJobConfig {
         }
     }
 
-    private String callLLMRewrite(String instructions) {
+    private boolean getShouldInstructionsBeUpdated(String recipeConstruct, Long recipeId){
         try{
-            LlmResponse response = togetherAiApi.callLLMRewrite(instructions);
+            LlmResponse response = togetherAiApi.callIsBadRecipe(recipeConstruct, recipeId);
+            if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
+                String content = response.getChoices().get(0).getMessage().getContent();
+                return content.toLowerCase().contains("false");
+            } else {
+                throw new LlmApiException("Validation response not returned in the response");
+            }
+        } catch (Exception e) {
+            throw new LlmApiException("Error calling LLM validation: " + e.getMessage(), e);
+        }
+    }
+
+    private String callLLMRewrite(String instructions, Long recipeId) {
+        try{
+            LlmResponse response = togetherAiApi.callLLMRewrite(instructions, recipeId);
             if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
                 return response.getChoices().get(0).getMessage().getContent();
             } else {
@@ -195,9 +211,9 @@ public class RecipeBatchJobConfig {
         }
     }
 
-    private String callFormatTitle(String title) {
+    private String callFormatTitle(String title, Long recipeId) {
         try{
-            LlmResponse response = togetherAiApi.callLLMFormatTitle(title);
+            LlmResponse response = togetherAiApi.callLLMFormatTitle(title, recipeId);
             if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
                 return response.getChoices().get(0).getMessage().getContent().trim();
             } else {
@@ -208,9 +224,9 @@ public class RecipeBatchJobConfig {
         }
     }
 
-    private String callLLMSummarize(String instructions) {
+    private String callLLMSummarize(String instructions, Long recipeId) {
         try {
-            LlmResponse response = togetherAiApi.callLLMSummarize(instructions);
+            LlmResponse response = togetherAiApi.callLLMSummarize(instructions, recipeId);
             if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
                 return response.getChoices().get(0).getMessage().getContent();
             } else {
@@ -221,9 +237,9 @@ public class RecipeBatchJobConfig {
         }
     }
 
-    private List<Double> callEmbeddingAPI(String summary) {
+    private List<Double> callEmbeddingAPI(String summary, Long recipeId) {
         try {
-            LlmResponse response = togetherAiApi.embed(summary);
+            LlmResponse response = togetherAiApi.embed(summary, recipeId);
             if (response != null && response.getData() != null && !response.getData().isEmpty()) {
                 return response.getData().get(0).getEmbedding();
             } else {

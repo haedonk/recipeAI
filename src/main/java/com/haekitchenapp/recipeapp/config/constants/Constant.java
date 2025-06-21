@@ -18,7 +18,27 @@ public class Constant {
             "Summarize the following cooking instructions into 1–2 concise, complete sentences, capturing the core steps" +
                     " and overall purpose for embedding: ";
 
-    public static final String RECIPE_TITLE_PROMPT = "Return only the cleaned recipe title. Do not include the word " +
-            "'recipe', explanations, or formatting. If the title is already clean, return it unchanged. Respond with one line only:";
+
+
+
+    public static final String RECIPE_SYSTEM_PROMPT =
+            "You are a helpful assistant that rewrites cooking instructions to " +
+                    "be clearer and easier to read.";
+
+    public static final String STRICT_RECIPE_REVIEWER_SYSTEM_PROMPT =
+            "You are a strict recipe reviewer. Only suggest rewriting when the instructions are unclear, poorly " +
+                    "formatted, or missing key information. Respond with only 'true' or 'false', and nothing else.";
+
+
+
+
+    public static final String TITLE_SYSTEM_PROMPT =
+            "You are a title formatter. Your job is to rewrite recipe titles to be clean, properly capitalized, " +
+                    "and user-friendly. Remove unnecessary labels, versions, or formatting artifacts. Do not include " +
+                    "explanations — only return the fixed title.";
+
+    public static final String TITLE_PROMPT =
+            "Format the following recipe title into a clean, properly capitalized, user-friendly " +
+                    "title without extra labels or formatting: ";
 
 }

@@ -83,7 +83,7 @@ public class BatchValidation {
             throw new IllegalArgumentException("Title must start with a letter or number: " + title);
         }
 
-        if (title.matches(".*[^a-zA-Z0-9\\s\\-,'&].*")) {
+        if (title.matches(".*[^a-zA-Z0-9\\s\\-,'&\\.].*")) {
             throw new IllegalArgumentException("Title contains disallowed characters: " + title);
         }
 

@@ -7,6 +7,8 @@ import com.haekitchenapp.recipeapp.model.response.togetherAi.LlmResponse;
 import com.haekitchenapp.recipeapp.repository.RecipeUpdateFailureRepository;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import com.haekitchenapp.recipeapp.service.TogetherAiApi;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -64,6 +66,9 @@ public class RecipeBatchJobConfig {
 
     @Autowired
     private ApiRetryConfig apiRetryConfig;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Bean
     public Job recipeUpdateJob() {
@@ -164,6 +169,7 @@ public class RecipeBatchJobConfig {
                 addFailedRecordToFailureRepository(recipe.getId(), e.getMessage());
             }
         }
+        entityManager.clear();
         log.info("Updated {} recipes", recipes.getItems().size());
     }
 

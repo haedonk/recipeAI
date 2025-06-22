@@ -11,10 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
@@ -55,35 +52,73 @@ public class RecipeBatchController {
     }
 
     @PostMapping("/start-all")
-    public String launchAll(@RequestParam String modValues) {
-        List<String> runIds = new ArrayList<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                String[] modValuesArray = modValues.split(",");
-                for (String modValue : modValuesArray) {
-                    String trimmedMod = modValue.trim();
-                    long runId = System.currentTimeMillis();
-                    runIds.add(String.valueOf(runId));
+    public ResponseEntity<String> launchAll(@RequestParam String modValues) {
+        String[] modValuesArray = modValues.split(",");
+        List<String> jobIds = new ArrayList<>();
 
-                    log.info("Launching job with modValue: {}", trimmedMod);
+        for (String modValue : modValuesArray) {
+            String trimmedMod = modValue.trim();
+            long runId = System.currentTimeMillis();
 
+            CompletableFuture.runAsync(() -> {
+                try {
                     JobParameters jobParameters = new JobParametersBuilder()
                             .addString("modValues", trimmedMod)
                             .addLong("runId", runId)
                             .toJobParameters();
 
-                    jobLauncher.run(recipeUpdateJob, jobParameters);
+                    JobExecution execution = jobLauncher.run(recipeUpdateJob, jobParameters);
+                    log.info("Job started with modValue: {}, execution ID: {}",
+                            trimmedMod, execution.getId());
+                } catch (Exception e) {
+                    log.error("Failed to start job with modValue {}: {}",
+                            trimmedMod, e.getMessage(), e);
+                }
+            });
 
-                    // Optional: small delay to avoid identical timestamps
-                    Thread.sleep(5);
+            jobIds.add(trimmedMod);
+
+            // Small delay to avoid identical timestamps
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        String message = "Launched " + jobIds.size() + " jobs with modValues: " + String.join(", ", jobIds);
+        log.info(message);
+        return ResponseEntity.ok(message);
+    }
+
+    @PostMapping("/stop-all")
+    public ResponseEntity<String> stopAllJobs() {
+        List<String> stoppedJobs = new ArrayList<>();
+        List<String> failedToStop = new ArrayList<>();
+
+        // Get all running job executions
+        Set<JobExecution> runningExecutions = jobExplorer.findRunningJobExecutions("");
+
+        for (JobExecution execution : runningExecutions) {
+            try {
+                boolean stopped = jobOperator.stop(execution.getId());
+                if (stopped) {
+                    stoppedJobs.add(String.valueOf(execution.getId()));
+                } else {
+                    failedToStop.add(String.valueOf(execution.getId()));
                 }
             } catch (Exception e) {
-                log.error("Job failed to start: {}", e.getMessage(), e);
+                log.error("Failed to stop job {}: {}", execution.getId(), e.getMessage());
+                failedToStop.add(String.valueOf(execution.getId()));
             }
-        });
+        }
 
-        log.info("Jobs launched with run IDs: {}", String.join(", ", runIds));
-        return "Jobs launched. Run IDs: " + String.join(", ", runIds);
+        String message = String.format("Stopped %d jobs: %s. Failed to stop %d jobs: %s",
+                stoppedJobs.size(), String.join(", ", stoppedJobs),
+                failedToStop.size(), String.join(", ", failedToStop));
+
+        log.info(message);
+        return ResponseEntity.ok(message);
     }
 
 

@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -279,6 +280,7 @@ public class RecipeService {
      * @return the updated recipe
      * @throws IllegalArgumentException if the recipe data is invalid or if a data integrity violation occurs
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Recipe updateRecipe(Recipe recipe) {
         log.info("Updating recipe: {}", recipe);
         try {

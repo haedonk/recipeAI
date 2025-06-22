@@ -113,6 +113,9 @@ public class RecipeBatchJobConfig {
                 Duration startTime = Duration.ofMillis(System.currentTimeMillis());
                 Recipe recipe = recipeService.getRecipeByIdWithIngredients(id);
                 logTime("Fetched recipe with ID: " + id, startTime);
+                String formattedTitle = apiRetryConfig.retryTemplate(() ->
+                        validateTitle(callFormatTitle(sanitizeTitle(recipe.getTitle()), id))).trim();
+                logTime("Formatted title for recipe with ID: " + id, startTime);
                 boolean shouldBeUpdated = apiRetryConfig.retryTemplate(() ->
                         getShouldInstructionsBeUpdated(getFullSummary(recipe, recipe.getInstructions()), id));
                 logTime("Checked if recipe with ID: " + id + " should be updated", startTime);
@@ -121,9 +124,6 @@ public class RecipeBatchJobConfig {
                         validateRewrittenInstructions(callLLMRewrite(recipe.getInstructions(), id),
                                 recipe.getInstructions())).trim() : recipe.getInstructions();
                 if(shouldBeUpdated) logTime("Rewritten instructions for recipe with ID: " + id, startTime);
-                String formattedTitle = apiRetryConfig.retryTemplate(() ->
-                                validateTitle(callFormatTitle(recipe.getTitle(), id))).trim();
-                logTime("Formatted title for recipe with ID: " + id, startTime);
                 String summary = apiRetryConfig.retryTemplate(() ->
                                 validateSummary(callLLMSummarize(instructions, id))).trim();
                 logTime("Summarized instructions for recipe with ID: " + id, startTime);
@@ -135,6 +135,7 @@ public class RecipeBatchJobConfig {
                 recipe.setInstructions(instructions);
                 recipe.setSummary(summary);
                 recipe.setEmbedding(embedding);
+                logTime("Processed recipe with ID: " + id, startTime);
                 return null;
             } catch (LlmApiException e) {
                 log.error("Error processing recipe {}: {}", id, e.getMessage());

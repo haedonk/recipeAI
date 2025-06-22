@@ -112,4 +112,9 @@ public class BatchValidation {
 
         return title;
     }
+
+    public static String sanitizeTitle(String title) {
+        // Strip characters not allowed by your regex
+        return title.replaceAll("[^a-zA-Z0-9\\s\\-,'&]", "").trim().replaceAll("\\s+", " ");
+    }
 }

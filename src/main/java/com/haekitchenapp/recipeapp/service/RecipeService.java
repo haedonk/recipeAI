@@ -280,7 +280,6 @@ public class RecipeService {
      * @return the updated recipe
      * @throws IllegalArgumentException if the recipe data is invalid or if a data integrity violation occurs
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Recipe updateRecipe(Recipe recipe) {
         log.info("Updating recipe: {}", recipe);
         try {

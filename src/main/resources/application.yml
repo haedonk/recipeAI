@@ -71,3 +71,6 @@ logging:
     org.hibernate.orm.sql.ast: WARN
     org.hibernate.orm.results.graph: WARN
     org.hibernate.internal.AbstractSharedSessionContract: ERROR
+    com.zaxxer.hikari: DEBUG                # Hikari pool general logging
+    com.zaxxer.hikari.HikariConfig: DEBUG   # Hikari configuration details
+    com.zaxxer.hikari.pool.HikariPool: DEBUG

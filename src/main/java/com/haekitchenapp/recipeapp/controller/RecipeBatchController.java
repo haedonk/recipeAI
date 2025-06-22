@@ -80,14 +80,14 @@ public class RecipeBatchController {
 
             // Small delay to avoid identical timestamps
             try {
-                Thread.sleep(5000);
+                Thread.sleep(1500);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
 
         try {
-            Thread.sleep(20000);
+            Thread.sleep(30000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

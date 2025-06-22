@@ -17,7 +17,7 @@ public class TogetherAiConfig {
     private String chatModel;
     private String embedEndpoint;
     private String embedModel;
-    private String chatTitleModel;
+    private String chatSmallModel;
 
     @Data
     public static class Client {

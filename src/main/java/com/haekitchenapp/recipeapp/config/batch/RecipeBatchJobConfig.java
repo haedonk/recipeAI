@@ -31,6 +31,7 @@ import jakarta.persistence.EntityManagerFactory;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -77,8 +78,8 @@ public class RecipeBatchJobConfig {
     public Step recipeUpdateStep() {
         return new StepBuilder("recipeUpdateStep", jobRepository)
                 .<Long, Recipe>chunk(chunkSize, transactionManager)
-                .reader(recipeReader())
-                .processor(recipeProcessor(null))
+                .reader(recipeReader(null))
+                .processor(recipeProcessor())
                 .writer(this::updateRecipes)
                 .faultTolerant()
                 .skip(LlmApiException.class)
@@ -89,30 +90,21 @@ public class RecipeBatchJobConfig {
 
     @Bean
     @StepScope
-    public JpaPagingItemReader<Long> recipeReader() {
+    public JpaPagingItemReader<Long> recipeReader(@Value("#{jobParameters['modValues']}") String modValue){
         return new JpaPagingItemReaderBuilder<Long>()
                 .name("recipeReader")
                 .entityManagerFactory(entityManagerFactory)
-                .queryString("SELECT r.id FROM Recipe r WHERE r.embedding IS NULL")
+                .queryString("SELECT r.id FROM Recipe r WHERE r.embedding IS NULL AND MOD(r.id, 10) = :modValue")
+                .parameterValues(Map.of("modValue", Integer.parseInt(modValue)))
                 .pageSize(chunkSize)
                 .build();
     }
 
     @Bean
     @StepScope
-    public ItemProcessor<Long, Recipe> recipeProcessor(
-            @Value("#{jobParameters['modValues']}") String modValues) {
-        log.info("Recipe processor initialized with mod values: {}", modValues);
-        Set<Integer> allowedMods = Arrays.stream(modValues.split(","))
-                .map(String::trim)
-                .map(Integer::parseInt)
-                .collect(Collectors.toSet());
+    public ItemProcessor<Long, Recipe> recipeProcessor() {
         return id -> {
             try{
-                if (!allowedMods.contains((int) (id % 10))) {
-                    log.info("Skipping recipe with ID {} due to mod value", id);
-                    return null; // skip recipe
-                }
                 Duration startTime = Duration.ofMillis(System.currentTimeMillis());
                 Recipe recipe = recipeService.getRecipeByIdWithIngredients(id);
                 logTime("Fetched recipe with ID: " + id, startTime);
@@ -138,7 +130,7 @@ public class RecipeBatchJobConfig {
                 recipe.setInstructions(instructions);
                 recipe.setSummary(summary);
                 recipe.setEmbedding(embedding);
-                return recipe;
+                return null;
             } catch (LlmApiException e) {
                 log.error("Error processing recipe {}: {}", id, e.getMessage());
                 addFailedRecordToFailureRepository(id, e.getMessage());

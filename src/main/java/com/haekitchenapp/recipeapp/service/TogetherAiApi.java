@@ -11,6 +11,7 @@ import com.haekitchenapp.recipeapp.model.request.togetherAi.LLMRequestSummarizeD
 import com.haekitchenapp.recipeapp.model.request.togetherAi.RoleContent;
 import com.haekitchenapp.recipeapp.model.response.togetherAi.LlmResponse;
 import com.haekitchenapp.recipeapp.repository.LlmQueryLogRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import static com.haekitchenapp.recipeapp.config.constants.Constant.*;
 
 
 @Service
+@Slf4j
 public class TogetherAiApi {
 
     @Autowired
@@ -37,11 +39,11 @@ public class TogetherAiApi {
 
     public LlmResponse callIsBadRecipe(String recipeDto, Long recipeId) {
         RoleContent systemRole = RoleContent.getUserRole(recipeDto);
-        LLMRequest llmRequest = LLMRequest.getDefaultChatRequest(config.getChatModel(), STRICT_RECIPE_REVIEWER_SYSTEM_PROMPT);
+        LLMRequest llmRequest = LLMRequest.getDefaultChatRequest(config.getChatSmallModel(), STRICT_RECIPE_REVIEWER_SYSTEM_PROMPT);
         llmRequest.getMessages().add(systemRole);
         LlmResponse response = getChatResponse(llmRequest);
         if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-            saveQueryLog(config.getChatModel(), recipeDto, response, recipeId);
+            saveQueryLog(config.getChatSmallModel(), recipeDto, response, recipeId);
         } else {
             throw new LlmApiException("Context not returned in the response");
         }
@@ -96,11 +98,11 @@ public class TogetherAiApi {
     public LlmResponse callLLMFormatTitle(String title, Long recipeId){
         String prompt =  TITLE_PROMPT+ "\n\n" + title;
         RoleContent systemRole = RoleContent.getUserRole(prompt);
-        LLMRequest llmRequest = LLMRequest.getDefaultChatRequest(config.getChatTitleModel(), TITLE_SYSTEM_PROMPT);
+        LLMRequest llmRequest = LLMRequest.getDefaultChatRequest(config.getChatSmallModel(), TITLE_SYSTEM_PROMPT);
         llmRequest.getMessages().add(systemRole);
         LlmResponse response = getChatResponse(llmRequest);
         if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-            saveQueryLog(config.getChatTitleModel(), prompt, response, recipeId);
+            saveQueryLog(config.getChatSmallModel(), prompt, response, recipeId);
         } else {
             throw new LlmApiException("Context not returned in the response");
         }
@@ -109,6 +111,7 @@ public class TogetherAiApi {
 
     private LlmResponse getChatResponse(LLMRequest llmRequest){
         try{
+            log.info("Calling Together AI Chat API with request: {}", llmRequest);
             return togetherWebClient.post()
                     .uri(config.getChatEndpoint())
                     .bodyValue(llmRequest)
@@ -160,6 +163,7 @@ public class TogetherAiApi {
 
     private LlmResponse getEmbedResponse(LLMRequest llmRequest) {
         try{
+            log.info("Calling Together AI Embed API with request: {}", llmRequest);
             return togetherWebClient.post()
                     .uri(config.getEmbedEndpoint())
                     .bodyValue(llmRequest)

@@ -25,6 +25,15 @@ public class LLMRequest {
     private List<RoleContent> messages;
     private List<String> input;
 
+    @Override
+    public String toString() {
+        return "LLMRequest{" +
+                "model='" + model + '\'' +
+                ", messages=" + messages +
+                ", input=" + input +
+                '}';
+    }
+
 
     public static LLMRequest getDefaultEmbedRequest(String model, List<String> input) {
         return new LLMRequest(model, null, input);

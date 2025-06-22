@@ -20,10 +20,10 @@ public class RecipeJobLauncher {
         this.recipeUpdateJob = recipeUpdateJob;
     }
 
-    public void launchWithModValues(String modValues) {
+    public void launchWithModValues(String modValue) {
         try {
             JobParameters params = new JobParametersBuilder()
-                    .addString("modValues", modValues)
+                    .addString("modValue", modValue)
                     .addLong("runId", System.currentTimeMillis()) // ensure unique execution
                     .toJobParameters();
 

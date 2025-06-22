@@ -43,7 +43,7 @@ spring:
     chat-endpoint: "/chat/completions"
     embed-model: ${EMBED_MODEL:BAAI/bge-base-en-v1.5-vllm}
     chat-model: ${CHAT_MODEL:mistralai/Mixtral-8x7B-Instruct-v0.1}
-    chat-title-model: ${CHAT_MODEL:mistralai/Mistral-7B-Instruct-v0.2}
+    chat-small-model: ${CHAT_MODEL:mistralai/Mistral-7B-Instruct-v0.2}
     client:
       max-connections: ${TOGETHER_AI_MAX_CONNECTIONS:15}
       max-idle-time-seconds: 60

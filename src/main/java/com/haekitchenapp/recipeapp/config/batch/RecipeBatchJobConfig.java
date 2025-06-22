@@ -95,14 +95,19 @@ public class RecipeBatchJobConfig {
 
     @Bean
     @StepScope
-    public JpaPagingItemReader<Long> recipeReader(@Value("#{jobParameters['modValues']}") String modValue){
-        return new JpaPagingItemReaderBuilder<Long>()
+    public JpaPagingItemReader<Long> recipeReader(@Value("#{jobParameters['modValues']}") String modValue) {
+        log.info("Initializing reader with modValue: {}", modValue);
+
+        JpaPagingItemReader<Long> reader = new JpaPagingItemReaderBuilder<Long>()
                 .name("recipeReader")
                 .entityManagerFactory(entityManagerFactory)
                 .queryString("SELECT r.id FROM Recipe r WHERE r.embedding IS NULL AND MOD(r.id, 10) = :modValue")
                 .parameterValues(Map.of("modValue", Integer.parseInt(modValue)))
                 .pageSize(chunkSize)
                 .build();
+
+        log.info("Reader initialized for modValue: {}", modValue);
+        return reader;
     }
 
     @Bean
@@ -136,7 +141,7 @@ public class RecipeBatchJobConfig {
                 recipe.setSummary(summary);
                 recipe.setEmbedding(embedding);
                 logTime("Processed recipe with ID: " + id, startTime);
-                return null;
+                return recipe;
             } catch (LlmApiException e) {
                 log.error("Error processing recipe {}: {}", id, e.getMessage());
                 addFailedRecordToFailureRepository(id, e.getMessage());

@@ -36,5 +36,20 @@ public class Recipe extends BaseEntity {
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private Set<RecipeIngredient> ingredients;
+
+    @Override
+    public String toString() {
+        return "Recipe{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", instructions='" + instructions + '\'' +
+                ", summary='" + summary + '\'' +
+                ", embedding=" + embedding +
+                ", prepTime=" + prepTime +
+                ", cookTime=" + cookTime +
+                ", servings=" + servings +
+                ", createdBy=" + createdBy +
+                '}';
+    }
 }
 

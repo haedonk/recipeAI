@@ -12,5 +12,5 @@ import java.util.List;
 public class LlmData {
     String index;
     String object;
-    List<Double> embedding;
+    Double[] embedding;
 }

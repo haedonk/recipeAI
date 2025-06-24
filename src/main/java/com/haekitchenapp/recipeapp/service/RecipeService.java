@@ -1,13 +1,13 @@
 package com.haekitchenapp.recipeapp.service;
 
 import com.haekitchenapp.recipeapp.entity.Recipe;
+import com.haekitchenapp.recipeapp.exception.EmbedFailureException;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
 import com.haekitchenapp.recipeapp.model.response.batch.Status;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
-import com.haekitchenapp.recipeapp.repository.IngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeUpdateFailureRepository;
 import com.haekitchenapp.recipeapp.utility.RecipeMapper;
@@ -19,10 +19,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -34,6 +35,8 @@ public class RecipeService {
     private final RecipeUpdateFailureRepository recipeUpdateFailureRepository;
 
     private final RecipeMapper recipeMapper;
+
+    private final TogetherAiApi togetherAiApi;
 
     /**
      * Fetches all recipes from the repository.
@@ -85,6 +88,40 @@ public class RecipeService {
             throw new RecipeSearchFoundNoneException("No recipes found with title: " + title);
         }
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
+    }
+
+    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchByAdvancedEmbedding(String query, int limit) {
+        log.info("Searching recipes by advanced embedding with query: {}", query);
+        if (query == null || query.isBlank()) {
+            throw new IllegalArgumentException("Query must not be null or empty");
+        }
+        if(limit <= 0) {
+            throw new IllegalArgumentException("Limit must be greater than 0");
+        }
+        String embedding = getEmbeddingStringForSimilaritySearch(query);
+        List<RecipeSimilarityDto> recipes = recipeRepository.findTopByEmbeddingSimilarity(embedding, limit);
+        if (recipes.isEmpty()) {
+            log.warn("No recipes found with advanced embedding for query: {}", query);
+            return ResponseEntity.ok(ApiResponse.success("No recipes found with advanced embedding for query: " + query));
+        }
+        log.info("Found {} recipes with advanced embedding for query: {}", recipes.size(), query);
+        return ResponseEntity.ok(ApiResponse.success("Recipes with advanced embedding retrieved successfully", recipes));
+    }
+
+    public String getEmbeddingStringForSimilaritySearch(String query) {
+        log.info("Getting embedding for query: {}", query);
+        if (query == null || query.isBlank()) {
+            throw new IllegalArgumentException("Query must not be null or empty");
+        }
+        Double[] embedding = togetherAiApi.embed(query);
+        if (embedding == null || embedding.length == 0) {
+            log.warn("No embedding found for query: {}", query);
+            throw new EmbedFailureException("No embedding found for query: " + query);
+        }
+        log.info("Embedding retrieved successfully for query: {}", query);
+        return Arrays.stream(embedding)
+                .map(String::valueOf)
+                .collect(Collectors.joining(",", "[", "]"));
     }
 
     /**
@@ -245,10 +282,13 @@ public class RecipeService {
      * @return the saved recipe
      * @throws IllegalArgumentException if the recipe data is invalid or if a data integrity violation occurs
      */
-    private Recipe saveRecipe(Recipe recipe) {
+    public Recipe saveRecipe(Recipe recipe) {
         log.info("Saving recipe: {}", recipe);
         try {
             recipe = recipeRepository.save(recipe);
+            if(recipe.getEmbedding() != null && recipe.getEmbedding().length > 0) {
+                recipeRepository.updateEmbedding(recipe.getId(), recipe.getEmbedString());
+            }
             log.info("Recipe saved successfully: {}", recipe);
         } catch (DataIntegrityViolationException e) {
             log.error("Data integrity violation while saving recipe: {}", e.getMessage());
@@ -280,10 +320,13 @@ public class RecipeService {
      * @return the updated recipe
      * @throws IllegalArgumentException if the recipe data is invalid or if a data integrity violation occurs
      */
-    public Recipe updateRecipe(Recipe recipe) {
+    private Recipe updateRecipe(Recipe recipe) {
         log.info("Updating recipe: {}", recipe);
         try {
             recipe = recipeRepository.save(recipe);
+            if(recipe.getEmbedding() != null && recipe.getEmbedding().length > 0) {
+                recipeRepository.updateEmbedding(recipe.getId(), recipe.getEmbedString());
+            }
         } catch (DataIntegrityViolationException e) {
             log.error("Data integrity violation while updating recipe: {}", e.getMessage());
             throw new IllegalArgumentException("Invalid recipe data", e);
@@ -336,7 +379,7 @@ public class RecipeService {
             throw new IllegalArgumentException("Recipe ID must not be null");
         }
         return recipeRepository.findById(id)
-                .orElse(null);
+                .orElseThrow(() -> new RecipeNotFoundException("Recipe not found with ID: " + id));
     }
 
     public RecipeTitleDto findRecipeTitleDtoById(Long id) {

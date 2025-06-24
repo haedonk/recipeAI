@@ -13,7 +13,7 @@ public class BatchValidation {
         if (summary == null) {
             throw new IllegalArgumentException("Summary is null");
         }
-        if (summary.length() < 40) {
+        if (summary.length() < 100) {
             throw new IllegalArgumentException("Summary is too short: " + summary.length() + " chars");
         }
         if (summary.length() > 700) {
@@ -46,16 +46,17 @@ public class BatchValidation {
         return text;
     }
 
-    public static List<Double> validateEmbedding(List<Double> embedding) {
+    public static Double[] validateEmbedding(Double[] embedding) {
+        int embeddingLength = embedding != null ? embedding.length : 0;
         if (embedding == null) {
             throw new IllegalArgumentException("Embedding is null");
         }
-        if (embedding.size() != 768) {
-            throw new IllegalArgumentException("Embedding length is incorrect: expected 768, got " + embedding.size());
+        if (embeddingLength != 768) {
+            throw new IllegalArgumentException("Embedding length is incorrect: expected 768, got " + embeddingLength);
         }
 
-        for (int i = 0; i < embedding.size(); i++) {
-            Double value = embedding.get(i);
+        for (int i = 0; i < embeddingLength; i++) {
+            Double value = embedding[i];
             if (Double.isNaN(value) || Double.isInfinite(value)) {
                 throw new IllegalArgumentException("Embedding contains invalid value at index " + i + ": " + value);
             }

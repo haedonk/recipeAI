@@ -19,6 +19,12 @@ public class Advice {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(EmbedFailureException.class)
+    public ResponseEntity<ApiResponse<Object>> handleEmbedFailure(EmbedFailureException ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Embedding failed: " + ex.getMessage()));
+    }
+
     @ExceptionHandler(UserEmailExistsException.class)
     public ResponseEntity<ApiResponse<Object>> handleUserEmailExists(UserEmailExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

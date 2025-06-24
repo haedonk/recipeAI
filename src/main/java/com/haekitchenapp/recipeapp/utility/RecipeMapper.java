@@ -3,9 +3,11 @@ package com.haekitchenapp.recipeapp.utility;
 import com.haekitchenapp.recipeapp.entity.*;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeIngredientRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
+import com.haekitchenapp.recipeapp.model.request.recipeStage.RecipeStageRequest;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
+import com.haekitchenapp.recipeapp.repository.RecipeStageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +28,7 @@ public class RecipeMapper {
         recipe.setTitle(request.getTitle());
         recipe.setInstructions(request.getInstructions());
         recipe.setSummary(request.getSummary() != null ? request.getSummary() : "");
-        recipe.setEmbedding(request.getEmbedding() != null ? request.getEmbedding() : List.of());
+        recipe.setEmbedding(request.getEmbedding() != null ? request.getEmbedding() : null);
         recipe.setPrepTime(request.getPrepTime());
         recipe.setCookTime(request.getCookTime());
         recipe.setServings(request.getServings());
@@ -41,12 +43,12 @@ public class RecipeMapper {
 
     private RecipeIngredient mapToRecipeIngredient(RecipeIngredientRequest riRequest, Recipe recipe) {
         Ingredient ingredient = ingredientRepository
-                .findByNameIgnoreCase(riRequest.getName())
-                .orElseGet(() -> {
-                    Ingredient newIng = new Ingredient();
-                    newIng.setName(riRequest.getName().toLowerCase());
-                    return ingredientRepository.save(newIng);
-                });
+            .findByNameIgnoreCase(riRequest.getName())
+            .orElseGet(() -> {
+                Ingredient newIng = new Ingredient();
+                newIng.setName(riRequest.getName().toLowerCase());
+                return ingredientRepository.save(newIng);
+            });
 
         RecipeIngredient ri = new RecipeIngredient();
         ri.setRecipe(recipe);
@@ -56,6 +58,59 @@ public class RecipeMapper {
 
         return ri;
     }
+
+
+    public RecipeStage toEntity(RecipeStageRequest request) {
+        RecipeStage recipe = new RecipeStage();
+        recipe.setId(request.getId());
+        recipe.setCreatedBy(request.getCreatedBy());
+        recipe.setTitle(request.getTitle());
+        recipe.setInstructions(request.getInstructions());
+        recipe.setPrepTime(request.getPrepTime());
+        recipe.setCookTime(request.getCookTime());
+        recipe.setServings(request.getServings());
+
+        Set<RecipeStageIngredient> ingredients = request.getIngredients().stream()
+                .map(ri -> mapToRecipeIngredient(ri, recipe))
+                .collect(Collectors.toSet());
+
+        recipe.setIngredients(ingredients);
+        return recipe;
+    }
+
+    private RecipeStageIngredient mapToRecipeIngredient(RecipeIngredientRequest riRequest, RecipeStage recipe) {
+        Ingredient ingredient = ingredientRepository
+            .findByNameIgnoreCase(riRequest.getName())
+            .orElseGet(() -> {
+                Ingredient newIng = new Ingredient();
+                newIng.setName(riRequest.getName().toLowerCase());
+                return ingredientRepository.save(newIng);
+            });
+
+        RecipeStageIngredient ri = new RecipeStageIngredient();
+        ri.setRecipe(recipe);
+        ri.setIngredient(ingredient);
+        ri.setQuantity(riRequest.getQuantity());
+        ri.setUnit(riRequest.getUnit());
+
+        return ri;
+    }
+
+    public RecipeStage toEntity(RecipeStage recipe, RecipeStageRequest request) {
+        RecipeStageRequest recipeRequest = new RecipeStageRequest();
+        recipeRequest.setId(recipe.getId());
+        recipeRequest.setCreatedBy(recipe.getCreatedBy());
+        recipeRequest.setTitle(request.getTitle() != null ? request.getTitle() : recipe.getTitle());
+        recipeRequest.setInstructions(request.getInstructions() != null ? request.getInstructions() : recipe.getInstructions());
+        recipeRequest.setPrepTime(request.getPrepTime() != null ? request.getPrepTime() : recipe.getPrepTime());
+        recipeRequest.setCookTime(request.getCookTime() != null ? request.getCookTime() : recipe.getCookTime());
+        recipeRequest.setServings(request.getServings() != null ? request.getServings() : recipe.getServings());
+        recipeRequest.setIngredients(request.getIngredients() != null ? request.getIngredients() : recipe.getIngredients().stream()
+                .map(ri -> new RecipeIngredientRequest(ri.getId(), ri.getIngredient().getName(), ri.getQuantity(), ri.getUnit()))
+                .collect(Collectors.toSet()));
+        return toEntity(recipeRequest);
+    }
+
 
     public Recipe toEntity(Recipe recipe, RecipeRequest request) {
         RecipeRequest recipeRequest = new RecipeRequest();

@@ -1,15 +1,15 @@
 package com.haekitchenapp.recipeapp.controller;
 
 import com.haekitchenapp.recipeapp.entity.Recipe;
+import com.haekitchenapp.recipeapp.entity.RecipeStage;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
+import com.haekitchenapp.recipeapp.model.request.recipeStage.RecipeStageRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeBulkResponse;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.service.RecipeService;
+import com.haekitchenapp.recipeapp.service.RecipeStageService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,11 +28,14 @@ public class RecipeController {
     @Autowired
     private RecipeService recipeService;
 
+    @Autowired
+    RecipeStageService recipeStageService;
+
     // Create endpoints
     @PostMapping
-    public ResponseEntity<ApiResponse<Recipe>> createRecipe(@RequestBody @Valid RecipeRequest recipeRequest) {
+    public ResponseEntity<ApiResponse<RecipeStage>> createRecipe(@RequestBody @Valid RecipeStageRequest recipeRequest) {
         log.info("Received request to create recipe: {}", recipeRequest);
-        return recipeService.create(recipeRequest);
+        return recipeStageService.create(recipeRequest);
     }
 
     // Bulk create endpoint
@@ -68,6 +71,13 @@ public class RecipeController {
     public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> searchRecipesByTitle(@RequestParam String title) throws RecipeSearchFoundNoneException {
         log.info("Received request to search recipes by title: {}", title);
         return recipeService.searchByTitle(title);
+    }
+
+    @GetMapping("/searchSimilarity")
+    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchRecipesByTitleSimilarity(@RequestParam String query,
+                                                                                                 @RequestParam Integer limit) throws RecipeSearchFoundNoneException {
+        log.info("Received request to search recipes by query similarity: {}", query);
+        return recipeService.searchByAdvancedEmbedding(query, limit);
     }
 
     @GetMapping("/findByTitle/{title}")

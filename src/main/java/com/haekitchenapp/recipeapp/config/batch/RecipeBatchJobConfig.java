@@ -2,10 +2,12 @@ package com.haekitchenapp.recipeapp.config.batch;
 
 import com.haekitchenapp.recipeapp.client.ApiRetryConfig;
 import com.haekitchenapp.recipeapp.entity.RecipeUpdateFailure;
+import com.haekitchenapp.recipeapp.entity.RecipeStage;
 import com.haekitchenapp.recipeapp.exception.LlmApiException;
 import com.haekitchenapp.recipeapp.model.response.togetherAi.LlmResponse;
 import com.haekitchenapp.recipeapp.repository.RecipeUpdateFailureRepository;
 import com.haekitchenapp.recipeapp.service.RecipeService;
+import com.haekitchenapp.recipeapp.service.RecipeStageService;
 import com.haekitchenapp.recipeapp.service.TogetherAiApi;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -13,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import com.haekitchenapp.recipeapp.entity.Recipe;
-import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
@@ -31,11 +32,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import jakarta.persistence.EntityManagerFactory;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.haekitchenapp.recipeapp.utility.BatchValidation.*;
 
@@ -62,6 +58,9 @@ public class RecipeBatchJobConfig {
     private RecipeService recipeService;
 
     @Autowired
+    private RecipeStageService recipeStageService;
+
+    @Autowired
     private RecipeUpdateFailureRepository recipeUpdateFailureRepository;
 
     @Autowired
@@ -82,10 +81,10 @@ public class RecipeBatchJobConfig {
     @Bean
     public Step recipeUpdateStep() {
         return new StepBuilder("recipeUpdateStep", jobRepository)
-                .<Long, Recipe>chunk(chunkSize, transactionManager)
-                .reader(recipeReader(null))
+                .<RecipeStage, Recipe>chunk(chunkSize, transactionManager)
+                .reader(recipeReader())
                 .processor(recipeProcessor())
-                .writer(this::updateRecipes)
+                .writer(this::saveRecipes)
                 .faultTolerant()
                 .skip(LlmApiException.class)
                 .skipPolicy(new AlwaysSkipItemSkipPolicy()) // or custom one
@@ -94,60 +93,52 @@ public class RecipeBatchJobConfig {
     }
 
     @Bean
-    @StepScope
-    public JpaPagingItemReader<Long> recipeReader(@Value("#{jobParameters['modValues']}") String modValue) {
-        log.info("Initializing reader with modValue: {}", modValue);
-
-        JpaPagingItemReader<Long> reader = new JpaPagingItemReaderBuilder<Long>()
+    public JpaPagingItemReader<RecipeStage> recipeReader() {
+        return new JpaPagingItemReaderBuilder<RecipeStage>()
                 .name("recipeReader")
                 .entityManagerFactory(entityManagerFactory)
-                .queryString("SELECT r.id FROM Recipe r WHERE r.embedding IS NULL AND MOD(r.id, 10) = :modValue")
-                .parameterValues(Map.of("modValue", Integer.parseInt(modValue)))
+                .queryString("SELECT r FROM RecipeStage r")
                 .pageSize(chunkSize)
                 .build();
-
-        log.info("Reader initialized for modValue: {}", modValue);
-        return reader;
     }
 
     @Bean
-    @StepScope
-    public ItemProcessor<Long, Recipe> recipeProcessor() {
-        return id -> {
+    public ItemProcessor<RecipeStage, Recipe> recipeProcessor() {
+        return stage -> {
             try{
                 Duration startTime = Duration.ofMillis(System.currentTimeMillis());
-                Recipe recipe = recipeService.getRecipeByIdWithIngredients(id);
-                logTime("Fetched recipe with ID: " + id, startTime);
+                Recipe recipe = stage.getRecipe();
+                logTime("Fetched recipe with ID: " + stage.getId(), startTime);
                 String formattedTitle = apiRetryConfig.retryTemplate(() ->
-                        validateTitle(callFormatTitle(sanitizeTitle(recipe.getTitle()), id))).trim();
-                logTime("Formatted title for recipe with ID: " + id, startTime);
+                        validateTitle(callFormatTitle(sanitizeTitle(recipe.getTitle()), stage.getId()))).trim();
+                logTime("Formatted title for recipe with ID: " + stage, startTime);
                 boolean shouldBeUpdated = apiRetryConfig.retryTemplate(() ->
-                        getShouldInstructionsBeUpdated(getFullSummary(recipe, recipe.getInstructions()), id));
-                logTime("Checked if recipe with ID: " + id + " should be updated", startTime);
-                log.info("Recipe instructions with ID {} should be updated: {}", id, shouldBeUpdated);
+                        getShouldInstructionsBeUpdated(getFullSummary(recipe, recipe.getInstructions()), stage.getId()));
+                logTime("Checked if recipe with ID: " + stage + " should be updated", startTime);
+                log.info("Recipe instructions with ID {} should be updated: {}", stage, shouldBeUpdated);
                 String instructions = shouldBeUpdated ? apiRetryConfig.retryTemplate(() ->
-                        validateRewrittenInstructions(callLLMRewrite(recipe.getInstructions(), id),
+                        validateRewrittenInstructions(callLLMRewrite(recipe.getInstructions(), stage.getId()),
                                 recipe.getInstructions())).trim() : recipe.getInstructions();
-                if(shouldBeUpdated) logTime("Rewritten instructions for recipe with ID: " + id, startTime);
+                if(shouldBeUpdated) logTime("Rewritten instructions for recipe with ID: " + stage, startTime);
                 String summary = apiRetryConfig.retryTemplate(() ->
-                                validateSummary(callLLMSummarize(instructions, id))).trim();
-                logTime("Summarized instructions for recipe with ID: " + id, startTime);
+                                validateSummary(callLLMSummarize(instructions, stage.getId()))).trim();
+                logTime("Summarized instructions for recipe with ID: " + stage, startTime);
                 String embedSummary = getFullSummary(recipe, summary);
-                List<Double> embedding = apiRetryConfig.retryTemplate(() ->
-                                validateEmbedding(callEmbeddingAPI(embedSummary, id)));
-                logTime("Generated embedding for recipe with ID: " + id, startTime);
+                Double[] embedding = apiRetryConfig.retryTemplate(() ->
+                                validateEmbedding(callEmbeddingAPI(embedSummary, stage.getId())));
+                logTime("Generated embedding for recipe with ID: " + stage, startTime);
                 recipe.setTitle(formattedTitle);
                 recipe.setInstructions(instructions);
                 recipe.setSummary(summary);
                 recipe.setEmbedding(embedding);
-                logTime("Processed recipe with ID: " + id, startTime);
+                logTime("Processed recipe with ID: " + stage, startTime);
                 return recipe;
             } catch (LlmApiException e) {
-                log.error("Error processing recipe {}: {}", id, e.getMessage());
-                addFailedRecordToFailureRepository(id, e.getMessage());
+                log.error("Error processing recipe {}: {}", stage, e.getMessage());
+                addFailedRecordToFailureRepository(stage.getId(), e.getMessage());
             } catch (Exception e) {
-                log.error("Unexpected error processing recipe {}: {}", id, e.getMessage());
-                addFailedRecordToFailureRepository(id, e.getMessage());
+                log.error("Unexpected error processing recipe {}: {}", stage, e.getMessage());
+                addFailedRecordToFailureRepository(stage.getId(), e.getMessage());
             }
             return null;
         };
@@ -165,11 +156,14 @@ public class RecipeBatchJobConfig {
                 + "\n Instructions: " + summary;
     }
 
-    private void updateRecipes(Chunk<? extends Recipe> recipes) {
+    private void saveRecipes(Chunk<? extends Recipe> recipes) {
         log.info("Updating {} recipes", recipes.getItems().size());
         for (Recipe recipe : recipes) {
             try {
-                recipeService.updateRecipe(recipe);
+                Long recipeId = recipe.getId();
+                recipe.setId(null); // Ensure ID is null for update
+                recipeService.saveRecipe(recipe);
+                recipeStageService.deleteAndFlush(recipeId);
             } catch (Exception e) {
                 log.error("Failed to update recipe {}: {}", recipe.getId(), e.getMessage());
                 addFailedRecordToFailureRepository(recipe.getId(), e.getMessage());
@@ -241,7 +235,7 @@ public class RecipeBatchJobConfig {
         }
     }
 
-    private List<Double> callEmbeddingAPI(String summary, Long recipeId) {
+    private Double[] callEmbeddingAPI(String summary, Long recipeId) {
         try {
             LlmResponse response = togetherAiApi.embed(summary, recipeId);
             if (response != null && response.getData() != null && !response.getData().isEmpty()) {

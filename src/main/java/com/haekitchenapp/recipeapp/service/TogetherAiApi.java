@@ -53,6 +53,7 @@ public class TogetherAiApi {
     private void saveQueryLog(String model, String prompt, LlmResponse response, Long recipeId) {
         String llmResponse = response.getChoices() == null ? response.getData().get(0).getEmbedding().toString() :
                 response.getChoices().get(0).getMessage().getContent();
+        if(llmResponse.length() > 100) llmResponse = llmResponse.substring(0, 100) + "..."; // Truncate if too long
         llmQueryLogRepository.save(new LlmQueryLog(
                 response.getId(), model, prompt, llmResponse,
                 response.getUsage().getTotalTokens().intValue(), response.getUsage().getPromptTokens().intValue(),
@@ -153,12 +154,22 @@ public class TogetherAiApi {
     public LlmResponse embed(String input, Long recipeId) {
         LLMRequest llmRequest = LLMRequest.getDefaultEmbedRequest(config.getEmbedModel(), List.of(EMBED_PROMPT + input));
         LlmResponse response = getEmbedResponse(llmRequest);
-        if (response != null && response.getData() != null && !response.getData().get(0).getEmbedding().isEmpty()) {
+        if (response != null && response.getData() != null && !(response.getData().get(0).getEmbedding().length == 0)) {
             saveQueryLog(config.getEmbedModel(), llmRequest.getInput().toString(), response, recipeId);
         } else {
             throw new LlmApiException("Context not returned in the response");
         }
         return response;
+    }
+
+    public Double[] embed(String input) {
+        LLMRequest llmRequest = LLMRequest.getDefaultEmbedRequest(config.getEmbedModel(), List.of(EMBED_PROMPT + input));
+        LlmResponse response = getEmbedResponse(llmRequest);
+        if (response != null && response.getData() != null && !(response.getData().get(0).getEmbedding().length == 0)) {
+            return response.getData().get(0).getEmbedding();
+        } else {
+            throw new LlmApiException("Context not returned in the response");
+        }
     }
 
     private LlmResponse getEmbedResponse(LLMRequest llmRequest) {

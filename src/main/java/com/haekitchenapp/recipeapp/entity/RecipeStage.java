@@ -1,22 +1,18 @@
 package com.haekitchenapp.recipeapp.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Entity
 @Getter
 @Setter
-@Table(name = "recipes")
-public class Recipe extends BaseEntity {
+@Table(name = "recipes_staging")
+public class RecipeStage extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,12 +23,6 @@ public class Recipe extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String instructions;
 
-    @Column(columnDefinition = "TEXT")
-    private String summary;
-
-    @Transient
-    private Double[] embedding;
-
     private Integer prepTime;
     private Integer cookTime;
     private Integer servings;
@@ -40,17 +30,20 @@ public class Recipe extends BaseEntity {
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
-    private Set<RecipeIngredient> ingredients;
-
+    private Set<RecipeStageIngredient> ingredients;
 
     @JsonIgnore
-    public String getEmbedString(){
-        if (embedding == null || embedding.length == 0) {
-            return null;
-        }
-        return Arrays.stream(embedding)
-                .map(String::valueOf)
-                .collect(Collectors.joining(",", "[", "]"));
+    public Recipe getRecipe() {
+        Recipe recipe = new Recipe();
+        recipe.setId(this.id);
+        recipe.setTitle(this.title);
+        recipe.setInstructions(this.instructions);
+        recipe.setPrepTime(this.prepTime);
+        recipe.setCookTime(this.cookTime);
+        recipe.setServings(this.servings);
+        recipe.setCreatedBy(this.createdBy);
+        recipe.setIngredients(RecipeStageIngredient.getRecipeIngredients(this.ingredients, recipe));
+        return recipe;
     }
 
     @Override
@@ -59,7 +52,6 @@ public class Recipe extends BaseEntity {
                 "id=" + id +
                 ", title='" + title + '\'' +
                 ", instructions='" + instructions + '\'' +
-                ", summary='" + summary + '\'' +
                 ", prepTime=" + prepTime +
                 ", cookTime=" + cookTime +
                 ", servings=" + servings +

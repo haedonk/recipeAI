@@ -2,9 +2,11 @@ package com.haekitchenapp.recipeapp.repository;
 
 import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSimilarityDto;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Page;
@@ -38,7 +40,18 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.createdBy = :userId")
     List<RecipeTitleDto> findTitlesByCreatedBy(Long userId);
 
-
+    @Query(value = "SELECT COUNT(*) FROM recipes WHERE embedding IS NOT NULL", nativeQuery = true)
     Long countByEmbeddingIsNotNull();
 
+    @Query(value = """
+    SELECT id, title, summary, (embedding <#> cast(:queryVector as vector)) AS similarity
+    FROM recipes
+    ORDER BY similarity ASC
+    LIMIT :limit
+    """, nativeQuery = true)
+    List<RecipeSimilarityDto> findTopByEmbeddingSimilarity(@Param("queryVector") String queryVector, @Param("limit") int limit);
+
+    @Modifying
+    @Query(value = "UPDATE recipes SET embedding = cast(:vector AS vector) WHERE id = :id", nativeQuery = true)
+    void updateEmbedding(@Param("id") Long id, @Param("vector") String vector);
 }

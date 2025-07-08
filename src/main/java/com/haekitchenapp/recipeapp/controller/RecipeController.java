@@ -4,6 +4,7 @@ import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.entity.RecipeStage;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
+import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
 import com.haekitchenapp.recipeapp.model.request.recipeStage.RecipeStageRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
@@ -67,17 +68,22 @@ public class RecipeController {
         return recipeService.findById(id);
     }
 
+    @GetMapping("/stage/{id}")
+    public ResponseEntity<ApiResponse<RecipeStage>> getRecipeStageById(@PathVariable Long id) throws RecipeNotFoundException {
+        log.info("Received request to get recipe stage by ID: {}", id);
+        return recipeStageService.findById(id);
+    }
+
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> searchRecipesByTitle(@RequestParam String title) throws RecipeSearchFoundNoneException {
         log.info("Received request to search recipes by title: {}", title);
         return recipeService.searchByTitle(title);
     }
 
-    @GetMapping("/searchSimilarity")
-    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchRecipesByTitleSimilarity(@RequestParam String query,
-                                                                                                 @RequestParam Integer limit) throws RecipeSearchFoundNoneException {
+    @PostMapping("/searchSimilarity")
+    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchRecipesByTitleSimilarity(@RequestBody @Valid RecipeSimilarityRequest query) throws RecipeSearchFoundNoneException {
         log.info("Received request to search recipes by query similarity: {}", query);
-        return recipeService.searchByAdvancedEmbedding(query, limit);
+        return recipeService.searchByAdvancedEmbedding(query);
     }
 
     @GetMapping("/findByTitle/{title}")

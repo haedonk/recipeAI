@@ -9,8 +9,8 @@ import java.util.concurrent.*;
 @Service
 public class RateLimiterService {
 
-    private static final int MAX_PER_MINUTE = 5;
-    private static final int MAX_PER_HOUR = 30;
+    private static final int MAX_PER_MINUTE = 30;
+    private static final int MAX_PER_HOUR = 100;
 
     private static final long ONE_MINUTE = 60;
     private static final long ONE_HOUR = 3600;

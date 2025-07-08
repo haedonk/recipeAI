@@ -46,10 +46,12 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     @Query(value = """
     SELECT id, title, summary, (embedding <#> cast(:queryVector as vector)) AS similarity
     FROM recipes
-    ORDER BY similarity ASC
+    ORDER BY
+        CASE WHEN lower(title) LIKE lower(:titlePattern) THEN 0 ELSE 1 END,  -- prioritize title matches
+        similarity ASC
     LIMIT :limit
     """, nativeQuery = true)
-    List<RecipeSimilarityDto> findTopByEmbeddingSimilarity(@Param("queryVector") String queryVector, @Param("limit") int limit);
+    List<RecipeSimilarityDto> findTopByEmbeddingSimilarity(@Param("queryVector") String queryVector, @Param("limit") int limit, @Param("titlePattern") String titlePattern);
 
     @Modifying
     @Query(value = "UPDATE recipes SET embedding = cast(:vector AS vector) WHERE id = :id", nativeQuery = true)

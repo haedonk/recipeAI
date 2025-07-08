@@ -5,9 +5,11 @@ import com.haekitchenapp.recipeapp.exception.EmbedFailureException;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
+import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
 import com.haekitchenapp.recipeapp.model.response.batch.Status;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
+import com.haekitchenapp.recipeapp.repository.RecipeIngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeUpdateFailureRepository;
 import com.haekitchenapp.recipeapp.utility.RecipeMapper;
@@ -21,8 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +32,8 @@ import java.util.stream.Collectors;
 public class RecipeService {
 
     private final RecipeRepository recipeRepository;
+
+    private final RecipeIngredientRepository recipeIngredientRepository;
 
     private final RecipeUpdateFailureRepository recipeUpdateFailureRepository;
 
@@ -90,16 +93,38 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
     }
 
-    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchByAdvancedEmbedding(String query, int limit) {
+    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchByAdvancedEmbedding(RecipeSimilarityRequest query) {
         log.info("Searching recipes by advanced embedding with query: {}", query);
-        if (query == null || query.isBlank()) {
-            throw new IllegalArgumentException("Query must not be null or empty");
-        }
-        if(limit <= 0) {
+        if(query.getLimit() <= 0) {
             throw new IllegalArgumentException("Limit must be greater than 0");
         }
-        String embedding = getEmbeddingStringForSimilaritySearch(query);
-        List<RecipeSimilarityDto> recipes = recipeRepository.findTopByEmbeddingSimilarity(embedding, limit);
+        String embedding = getEmbeddingStringForSimilaritySearch(query.toString());
+        List<RecipeSimilarityDto> recipes = recipeRepository.findTopByEmbeddingSimilarity(embedding, query.getLimit() + 30,
+                "%" + query.getTitle().toLowerCase() + "%");
+        Set<String> titles = new HashSet<>();
+        recipes = recipes.stream()
+                .filter(recipe -> {
+                    if(titles.contains(recipe.getTitle().toLowerCase())) {
+                        log.info("Duplicate recipe title found: {}", recipe.getTitle());
+                        return false; // Filter out duplicates
+                    } else {
+                        titles.add(recipe.getTitle().toLowerCase());
+                        return true; // Keep unique recipes
+                    }
+                }).toList();
+        List<Recipe> recipeWithIngredients = recipes.stream()
+                .map(recipe -> recipeRepository.findByIdWithIngredients(recipe.getId()))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
+        rankAndSortRecipe(recipes, recipeWithIngredients, query);
+        recipes = recipes.stream()
+                .sorted(Comparator
+                        .comparing(RecipeSimilarityDto::getTitleSimilarityRank).reversed()
+                        .thenComparing(RecipeSimilarityDto::getSimilarityRank, Comparator.reverseOrder())
+                        .thenComparing(RecipeSimilarityDto::getIncludesIngredientsCount, Comparator.reverseOrder()))
+                .limit(query.getLimit())
+                .collect(Collectors.toList());
         if (recipes.isEmpty()) {
             log.warn("No recipes found with advanced embedding for query: {}", query);
             return ResponseEntity.ok(ApiResponse.success("No recipes found with advanced embedding for query: " + query));
@@ -108,6 +133,76 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes with advanced embedding retrieved successfully", recipes));
     }
 
+    private void rankAndSortRecipe(List<RecipeSimilarityDto> recipes, List<Recipe> recipeIngredients, RecipeSimilarityRequest query) {
+        String queryString = String.join(" ", query.getTitle(), query.getCuisine(),
+                query.getIncludeIngredients(), query.getMealType(), query.getDetailLevel());
+        Set<String> parsedWordsNoArticles = Arrays.stream(queryString.split("\\s+"))
+                .map(String::toLowerCase)
+                .filter(word -> !word.isBlank() && !word.matches("^(a|an|the|and|or|but)$"))
+                .collect(Collectors.toSet());
+        log.info("Parsed words for ranking: {}", parsedWordsNoArticles);
+        log.info("Removing recipes with exclude ingredients: {}", query.getExcludeIngredients());
+        Set<String> excludeIngredients = Arrays.stream(query.getExcludeIngredients().split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
+        List<Long> idsToRemove = recipeIngredients.stream()
+                .filter(recipe -> recipe.getIngredients().stream()
+                        .anyMatch(ingredient -> excludeIngredients.contains(ingredient.getIngredient().getName().toLowerCase())))
+                .map(Recipe::getId)
+                .collect(Collectors.toList());
+        log.info("Removing recipes with IDs: {}", idsToRemove);
+        recipes = recipes.stream()
+                .filter(recipe -> !idsToRemove.contains(recipe.getId()))
+                .collect(Collectors.toList());
+        log.info("Scoring recipe similarity for {} recipes", recipes.size());
+        for (RecipeSimilarityDto recipe : recipes) {
+            scoreRecipeTitleSimilarity(recipe, query);
+            scoreRecipeWordSimilarity(recipe, query, parsedWordsNoArticles);
+            scoreIncludesIngredientsCount(recipe, recipeIngredients);
+        }
+        log.info("Recipes after ranking: {}", recipes);
+    }
+
+    private void scoreRecipeTitleSimilarity(RecipeSimilarityDto recipe, RecipeSimilarityRequest query) {
+        String recipeTitle = recipe.getTitle().toLowerCase().trim();
+        String queryTitle = query.getTitle().toLowerCase().trim();
+        long titleSimilarityCount = Arrays.stream(recipeTitle.split("\\s+"))
+                .filter(queryTitle::contains)
+                .peek(word -> log.info("Matching word in title: {}", word))
+                .count();
+        if(recipeTitle.split("\\s+").length == queryTitle.split("\\s+").length) {
+            titleSimilarityCount += 1;
+        }
+        recipe.setTitleSimilarityRank((int) titleSimilarityCount);
+        log.info("Recipe {} has a title similarity score of {}", recipe.getTitle(), recipe.getSimilarity());
+    }
+
+    private void scoreIncludesIngredientsCount(RecipeSimilarityDto recipe, List<Recipe> recipeIngredients) {
+        long includesIngredientsCount = recipeIngredients.stream()
+                .filter(ingredient -> ingredient.getId().equals(recipe.getId()))
+                .mapToLong(ingredient -> ingredient.getIngredients().size())
+                .peek(count -> log.info("Includes ingredients count for recipe {}: {}", recipe.getTitle(), count))
+                .sum();
+        recipe.setIncludesIngredientsCount((int) includesIngredientsCount);
+        log.info("Recipe includes ingredients count for {}: {}", recipe.getTitle(), includesIngredientsCount);
+    }
+
+    private void scoreRecipeWordSimilarity(RecipeSimilarityDto recipe, RecipeSimilarityRequest query,
+                                           Set<String> parsedWordsNoArticles) {
+        String recipeString = String.join(" ", recipe.getTitle(), recipe.getSummary());
+        Set<String> recipeWordsNoArticles = Arrays.stream(recipeString.split("\\s+"))
+                .map(String::toLowerCase)
+                .filter(word -> !word.isBlank() && !word.matches("^(a|an|the|and|or|but)$"))
+                .collect(Collectors.toSet());
+        long matchingWordsCount = parsedWordsNoArticles.stream()
+                .filter(recipeWordsNoArticles::contains)
+                .peek(word -> log.info("Matching word: {}", word))
+                .count();
+        recipe.setSimilarityRank((int) matchingWordsCount);
+        log.info("Recipe {} has {} matching words with query, similarity rank: {}", recipe.getTitle(), matchingWordsCount, recipe.getSimilarityRank());
+    }
+
+
     public String getEmbeddingStringForSimilaritySearch(String query) {
         log.info("Getting embedding for query: {}", query);
         if (query == null || query.isBlank()) {
@@ -115,7 +210,7 @@ public class RecipeService {
         }
         Double[] embedding = togetherAiApi.embed(query);
         if (embedding == null || embedding.length == 0) {
-            log.warn("No embedding found for query: {}", query);
+            log.warn("No embedding returned for query: {}", query);
             throw new EmbedFailureException("No embedding found for query: " + query);
         }
         log.info("Embedding retrieved successfully for query: {}", query);

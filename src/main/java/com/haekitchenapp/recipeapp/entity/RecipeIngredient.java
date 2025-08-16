@@ -25,6 +25,5 @@ public class RecipeIngredient extends BaseEntity {
     private Ingredient ingredient;
 
     private String quantity;
-    private String unit;
+    private Integer unitId;
 }
-

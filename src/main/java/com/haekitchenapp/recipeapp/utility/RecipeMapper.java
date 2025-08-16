@@ -54,7 +54,7 @@ public class RecipeMapper {
         ri.setRecipe(recipe);
         ri.setIngredient(ingredient);
         ri.setQuantity(riRequest.getQuantity());
-        ri.setUnit(riRequest.getUnit());
+        ri.setUnitId(riRequest.getUnitId());
 
         return ri;
     }
@@ -91,7 +91,7 @@ public class RecipeMapper {
         ri.setRecipe(recipe);
         ri.setIngredient(ingredient);
         ri.setQuantity(riRequest.getQuantity());
-        ri.setUnit(riRequest.getUnit());
+        ri.setUnitId(riRequest.getUnitId());
 
         return ri;
     }
@@ -106,7 +106,7 @@ public class RecipeMapper {
         recipeRequest.setCookTime(request.getCookTime() != null ? request.getCookTime() : recipe.getCookTime());
         recipeRequest.setServings(request.getServings() != null ? request.getServings() : recipe.getServings());
         recipeRequest.setIngredients(request.getIngredients() != null ? request.getIngredients() : recipe.getIngredients().stream()
-                .map(ri -> new RecipeIngredientRequest(ri.getId(), ri.getIngredient().getName(), ri.getQuantity(), ri.getUnit()))
+                .map(ri -> new RecipeIngredientRequest(ri.getId(), ri.getIngredient().getName(), ri.getQuantity(), ri.getUnitId()))
                 .collect(Collectors.toSet()));
         return toEntity(recipeRequest);
     }
@@ -124,7 +124,7 @@ public class RecipeMapper {
         recipeRequest.setCookTime(request.getCookTime() != null ? request.getCookTime() : recipe.getCookTime());
         recipeRequest.setServings(request.getServings() != null ? request.getServings() : recipe.getServings());
         recipeRequest.setIngredients(request.getIngredients() != null ? request.getIngredients() : recipe.getIngredients().stream()
-                .map(ri -> new RecipeIngredientRequest(ri.getId(), ri.getIngredient().getName(), ri.getQuantity(), ri.getUnit()))
+                .map(ri -> new RecipeIngredientRequest(ri.getId(), ri.getIngredient().getName(), ri.getQuantity(), ri.getUnitId()))
                 .collect(Collectors.toSet()));
         return toEntity(recipeRequest);
     }
@@ -153,7 +153,7 @@ public class RecipeMapper {
                 ri.getId(),
                 ri.getIngredient().getName(),
                 ri.getQuantity(),
-                ri.getUnit()
+                ri.getUnitId()
         );
     }
 

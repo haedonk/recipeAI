@@ -9,5 +9,5 @@ public class RecipeIngredientResponse {
 
     private String quantity;
 
-    private String unit;
+    private Integer unitId;
 }

@@ -32,7 +32,6 @@ public class RecipeJobLauncher {
     }
 
     // Run every day at 8:00 PM (20:00)
-    @Scheduled(cron = "0 0 20 * * ?")
     public void scheduledJobLaunch() {
         log.info("Starting scheduled evening recipe processing job");
         launch();

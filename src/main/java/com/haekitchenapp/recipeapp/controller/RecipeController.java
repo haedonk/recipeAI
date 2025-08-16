@@ -54,14 +54,6 @@ public class RecipeController {
         return recipeService.update(recipeRequest);
     }
 
-
-    // Get endpoints
-    @GetMapping("/numberOfRecipes/{page}")
-    public ResponseEntity<ApiResponse<RecipeBulkResponse>> getNumberOfRecipes(@PathVariable int page) throws RecipeNotFoundException {
-        log.info("Received request to get the number of recipes");
-        return recipeService.getNumberOfRecipes(page);
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Recipe>> getRecipeById(@PathVariable Long id) throws RecipeNotFoundException {
         log.info("Received request to get recipe by ID: {}", id);

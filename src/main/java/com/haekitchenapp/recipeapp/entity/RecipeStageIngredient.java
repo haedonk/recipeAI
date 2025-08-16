@@ -29,7 +29,7 @@ public class RecipeStageIngredient extends BaseEntity {
     private Ingredient ingredient;
 
     private String quantity;
-    private String unit;
+    private Integer unitId;
 
     @JsonIgnore
     public static Set<RecipeIngredient> getRecipeIngredients(Set<RecipeStageIngredient> recipeStageIngredients,
@@ -39,9 +39,8 @@ public class RecipeStageIngredient extends BaseEntity {
             recipeIngredient.setRecipe(recipe);
             recipeIngredient.setIngredient(stageIngredient.getIngredient());
             recipeIngredient.setQuantity(stageIngredient.getQuantity());
-            recipeIngredient.setUnit(stageIngredient.getUnit());
+            recipeIngredient.setUnitId(stageIngredient.getUnitId());
             return recipeIngredient;
         }).collect(Collectors.toSet());
     }
 }
-

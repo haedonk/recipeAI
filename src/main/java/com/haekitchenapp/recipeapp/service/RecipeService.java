@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -217,33 +218,6 @@ public class RecipeService {
         return Arrays.stream(embedding)
                 .map(String::valueOf)
                 .collect(Collectors.joining(",", "[", "]"));
-    }
-
-    /**
-     * Fetches all recipes with their ingredients for a given page.
-     *
-     * @param page the page number to fetch
-     * @return a response entity containing a bulk response of recipes with ingredients
-     * @throws RecipeNotFoundException if no recipes are found for the given page
-     */
-    public ResponseEntity<ApiResponse<RecipeBulkResponse>> getNumberOfRecipes(int page) throws RecipeNotFoundException {
-        log.info("Fetching all recipes with ingredients for page {}", page);
-        PageRequest pageable = PageRequest.of(page, 1000);
-        Page<Recipe> recipePage = recipeRepository.findAllWithIngredients(pageable);
-
-        if (recipePage.isEmpty()) {
-            log.warn("No recipes found with ingredients");
-            throw new RecipeNotFoundException("No more recipes found with ingredients");
-        }
-
-        List<RecipeResponse> recipeResponses = recipePage.getContent().stream()
-                .map(recipeMapper::toRecipeResponse)
-                .toList();
-
-        RecipeBulkResponse bulkResponse = new RecipeBulkResponse(recipeResponses, recipePage.isLast());
-
-        log.info("Found and mapped {} recipes with ingredients", recipePage.getContent().size());
-        return ResponseEntity.ok(ApiResponse.success("Recipes with ingredients retrieved successfully", bulkResponse));
     }
 
 /**

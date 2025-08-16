@@ -85,7 +85,7 @@ public class UserService {
         }
 
         User user = optionalUser.get();
-        if (!BCrypt.checkpw(dto.getPassword(), user.getPasswordHash())) {
+        if (!BCrypt.checkpw(dto.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException("User with email exists but invalid credentials");
         }
 

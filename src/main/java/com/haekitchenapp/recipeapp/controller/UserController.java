@@ -29,19 +29,6 @@ public class UserController {
         return userService.isUserEmailVerified(userId);
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<UserResponseDto>> registerUser(@Valid @RequestBody UserRequestDto userDto) {
-        log.info("Received request to register user: {}", userDto);
-        return userService.createUser(userDto);
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponseDto>> login(@Valid @RequestBody LoginRequestDto dto)
-            throws InvalidCredentialsException, UserNotFoundException {
-        log.info("Received request to login user: {}", dto);
-        return userService.login(dto);
-    }
-
     @PostMapping("/verify-email")
     public ResponseEntity<ApiResponse<Object>> verifyEmail(@Valid @RequestBody VerifyEmailRequestDto dto) {
         userService.verifyEmail(dto);

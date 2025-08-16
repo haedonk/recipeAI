@@ -1,14 +1,12 @@
 package com.haekitchenapp.recipeapp.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,6 +35,7 @@ public class Recipe extends BaseEntity {
     private Integer cookTime;
     private Integer servings;
     private Long createdBy;
+    private Boolean reprocessed;
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference

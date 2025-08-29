@@ -61,3 +61,7 @@ out/
 
 ### Application Properties ###
 src/main/resources/application-default.yml
+
+
+.env.local
+application-local.yml

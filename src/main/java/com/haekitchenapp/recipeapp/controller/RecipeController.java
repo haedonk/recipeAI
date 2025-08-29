@@ -1,9 +1,12 @@
 package com.haekitchenapp.recipeapp.controller;
 
+import com.haekitchenapp.recipeapp.entity.Ingredient;
 import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.entity.RecipeStage;
+import com.haekitchenapp.recipeapp.entity.Unit;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
+import com.haekitchenapp.recipeapp.model.request.recipe.EmbedUpdateRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
 import com.haekitchenapp.recipeapp.model.request.recipeStage.RecipeStageRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
@@ -11,6 +14,7 @@ import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import com.haekitchenapp.recipeapp.service.RecipeStageService;
+import com.haekitchenapp.recipeapp.service.UnitService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +23,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 @RestController
 @Validated
@@ -30,13 +35,22 @@ public class RecipeController {
     private RecipeService recipeService;
 
     @Autowired
+    private UnitService unitService;
+
+    @Autowired
     RecipeStageService recipeStageService;
 
     // Create endpoints
     @PostMapping
-    public ResponseEntity<ApiResponse<RecipeStage>> createRecipe(@RequestBody @Valid RecipeStageRequest recipeRequest) {
+    public ResponseEntity<ApiResponse<Recipe>> createRecipe(@RequestBody @Valid RecipeRequest recipeRequest) {
         log.info("Received request to create recipe: {}", recipeRequest);
-        return recipeStageService.create(recipeRequest);
+        return recipeService.create(recipeRequest);
+    }
+
+    @GetMapping("/units")
+    public ResponseEntity<ApiResponse<List<Unit>>> getUnits() {
+        log.info("Received request to get all ingredients");
+        return unitService.getAllUnits();
     }
 
     // Bulk create endpoint
@@ -54,8 +68,15 @@ public class RecipeController {
         return recipeService.update(recipeRequest);
     }
 
+    // Update endpoints
+    @PutMapping("/embed")
+    public ResponseEntity<ApiResponse<Object>> updateRecipe(@RequestBody @Valid EmbedUpdateRequest recipeRequest) {
+        log.info("Received request to update recipe embedding with ID {}: {}", recipeRequest.getId(), recipeRequest);
+        return recipeService.updateEmbeddingOnly(recipeRequest);
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Recipe>> getRecipeById(@PathVariable Long id) throws RecipeNotFoundException {
+    public ResponseEntity<ApiResponse<RecipeResponse>> getRecipeById(@PathVariable Long id) throws RecipeNotFoundException {
         log.info("Received request to get recipe by ID: {}", id);
         return recipeService.findById(id);
     }
@@ -98,7 +119,8 @@ public class RecipeController {
 
 
     @GetMapping("/llm-details/{id}")
-    public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(@PathVariable Long id) throws RecipeNotFoundException {
+    public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(@PathVariable Long id) throws RecipeNotFoundException,
+            ExecutionException, InterruptedException {
         log.info("Received request to get recipe details for ID: {}", id);
         return recipeService.getRecipeDetails(id);
     }

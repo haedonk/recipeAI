@@ -1,9 +1,11 @@
 package com.haekitchenapp.recipeapp.service;
 
 import com.haekitchenapp.recipeapp.entity.Recipe;
+import com.haekitchenapp.recipeapp.entity.RecipeIngredient;
 import com.haekitchenapp.recipeapp.exception.EmbedFailureException;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
+import com.haekitchenapp.recipeapp.model.request.recipe.EmbedUpdateRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
@@ -19,12 +21,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @Service
@@ -257,24 +261,36 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes ids successfully", recipes));
     }
 
-    /**
-     * Finds recipe details by ID, including ingredients.
-     *
-     * @param id the ID of the recipe to find
-     * @return the recipe details
-     * @throws RecipeNotFoundException if no recipe is found with the given ID
-     * @throws IllegalArgumentException if the ID is null
-     */
-    public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(Long id) throws RecipeNotFoundException {
+    @Async
+    public CompletableFuture<Optional<RecipeSummaryProjection>> getSimpleRecipe(Long id){
+        log.info("Fetching simple recipe by ID: {}", id);
+        return CompletableFuture.completedFuture(recipeRepository.findByIdWithSimple(id));
+    }
+
+    @Async
+    public CompletableFuture<List<Long>> getRecipeIngredients(Long id){
+        log.info("Fetching ingredient IDs for recipe ID: {}", id);
+        return CompletableFuture.completedFuture(recipeIngredientRepository.findIngredientIdsByRecipeId(id));
+    }
+
+
+
+    public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(Long id) throws RecipeNotFoundException, ExecutionException, InterruptedException {
         log.info("Finding recipe details by ID: {}", id);
         if (id == null) {
             throw new IllegalArgumentException("Recipe ID must not be null");
         }
 
-        Recipe recipeDetails = recipeRepository.findByIdWithIngredients(id)
-                .orElseThrow(() -> new RecipeNotFoundException("Recipe details not found with ID: " + id));
+        CompletableFuture<Optional<RecipeSummaryProjection>> simpleRecipeFuture = getSimpleRecipe(id);
+        CompletableFuture<List<Long>> ingredientsFuture = getRecipeIngredients(id);
 
-        RecipeDetailsDto recipeDetailsDto = recipeMapper.toLlmDetailsDto(recipeDetails);
+        CompletableFuture.allOf(simpleRecipeFuture, ingredientsFuture).join();
+
+        RecipeSummaryProjection recipeDetails = simpleRecipeFuture.get()
+                .orElseThrow(() -> new RecipeNotFoundException("Recipe details not found with ID: " + id));
+        List<Long> recipeIngredients = ingredientsFuture.get();
+
+        RecipeDetailsDto recipeDetailsDto = recipeMapper.toSimpleDto(recipeDetails, recipeIngredients);
 
         return ResponseEntity.ok(ApiResponse.success("Recipe details retrieved successfully", recipeDetailsDto));
     }
@@ -287,11 +303,19 @@ public class RecipeService {
      * @throws RecipeNotFoundException if no recipe is found with the given ID
      * @throws IllegalArgumentException if the ID is null
      */
-    public ResponseEntity<ApiResponse<Recipe>> findById(Long id) throws RecipeNotFoundException {
+    public ResponseEntity<ApiResponse<RecipeResponse>> findById(Long id) throws RecipeNotFoundException {
         if (id == null) {
             throw new IllegalArgumentException("Recipe ID must not be null");
         }
-        Recipe recipe = findRecipeById(id);
+        RecipeResponse recipe = recipeMapper.toRecipeResponse(findRecipeById(id), false);
+        return ResponseEntity.ok(ApiResponse.success("Recipe retrieved successfully", recipe));
+    }
+
+    public ResponseEntity<ApiResponse<RecipeResponse>> findByIdNumericQuantity(Long id) throws RecipeNotFoundException {
+        if (id == null) {
+            throw new IllegalArgumentException("Recipe ID must not be null");
+        }
+        RecipeResponse recipe = recipeMapper.toRecipeResponse(findRecipeById(id), true);
         return ResponseEntity.ok(ApiResponse.success("Recipe retrieved successfully", recipe));
     }
 
@@ -316,6 +340,7 @@ public class RecipeService {
      * @return the list of created recipes
      * @throws IllegalArgumentException if any recipe ID is not null or if a data integrity violation occurs
      */
+    @Transactional(rollbackFor = Exception.class)
     public ResponseEntity<ApiResponse<List<Recipe>>> createBulk(List<@Valid RecipeRequest> recipes) {
         log.info("Creating {} recipes in bulk", recipes.size());
         if (recipes.isEmpty()) {
@@ -364,6 +389,28 @@ public class RecipeService {
             throw new IllegalArgumentException("Invalid recipe data", e);
         }
         return recipe;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseEntity<ApiResponse<Object>> updateEmbeddingOnly(EmbedUpdateRequest recipe) {
+        updateEmbedColumn(recipe);
+        return ResponseEntity.ok(ApiResponse.success("Recipe embedding updated successfully"));
+    }
+
+    public void updateEmbedColumn(EmbedUpdateRequest recipe) {
+        if(recipe == null) throw new IllegalArgumentException("Recipe must not be null for update");
+        Long id = recipe.getId();
+        Double[] embedding = recipe.getEmbedding();
+        String embedString = recipe.getEmbedString();
+        if(id == null) throw new IllegalArgumentException("Recipe ID must not be null for update");
+        if(embedding == null || embedding.length == 0) throw new IllegalArgumentException("Embedding must not be null or empty");
+        try {
+            recipeRepository.updateEmbedding(id, embedString);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Data integrity violation while updating recipe embedding: {}", e.getMessage());
+            throw new IllegalArgumentException("Invalid embedding data", e);
+        }
+        log.info("Recipe embedding updated successfully for ID: {}", id);
     }
 
     /**
@@ -483,4 +530,5 @@ public class RecipeService {
         );
         return status;
     }
+
 }

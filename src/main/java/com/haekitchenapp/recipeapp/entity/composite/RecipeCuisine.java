@@ -1,5 +1,6 @@
 package com.haekitchenapp.recipeapp.entity.composite;
 
+import com.haekitchenapp.recipeapp.entity.BaseEntity;
 import com.haekitchenapp.recipeapp.entity.Cuisine;
 import com.haekitchenapp.recipeapp.entity.Recipe;
 import jakarta.persistence.*;
@@ -10,7 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Table(name = "recipe_cuisine")
-public class RecipeCuisine {
+public class RecipeCuisine  extends BaseEntity {
 
     @EmbeddedId
     private RecipeCuisineId id;

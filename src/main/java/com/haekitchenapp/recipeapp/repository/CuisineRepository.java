@@ -1,5 +1,4 @@
 package com.haekitchenapp.recipeapp.repository;
-
 import com.haekitchenapp.recipeapp.entity.Cuisine;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,3 +18,4 @@ public interface CuisineRepository extends JpaRepository<Cuisine, Integer> {
 
     boolean existsByName(String name);
 }
+

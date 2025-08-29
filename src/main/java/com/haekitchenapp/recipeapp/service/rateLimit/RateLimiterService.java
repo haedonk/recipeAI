@@ -1,5 +1,6 @@
 package com.haekitchenapp.recipeapp.service.rateLimit;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,31 +14,32 @@ public class RateLimiterService {
 
     private static final Logger logger = LoggerFactory.getLogger(RateLimiterService.class);
 
-    private static final int MAX_PER_MINUTE = 30;
-    private static final int MAX_PER_HOUR = 100;
+    @Value("${rate-limiter.max-per-minute:30}")
+    private int maxPerMinute;
 
-    private static final long ONE_MINUTE = 60;
-    private static final long ONE_HOUR = 3600;
+    @Value("${rate-limiter.max-per-hour:100}")
+    private int maxPerHour;
+
+    // Use TimeUnit constants instead of configuration values
+    private static final long ONE_MINUTE = TimeUnit.MINUTES.toSeconds(1);
+    private static final long ONE_HOUR = TimeUnit.HOURS.toSeconds(1);
 
     private final ConcurrentMap<String, Deque<Long>> userRequests = new ConcurrentHashMap<>();
 
-    public boolean isAllowed(String userKey) {
+    public boolean isAllowed(String userKey, int maxPerMinute, int maxPerHour) {
         long now = Instant.now().getEpochSecond();
         Deque<Long> timestamps = userRequests.computeIfAbsent(userKey, k -> new ConcurrentLinkedDeque<>());
 
         synchronized (timestamps) {
-            // Remove expired entries
             timestamps.removeIf(ts -> now - ts > ONE_HOUR);
 
-            // Count requests in last minute & hour
             long countLastMinute = timestamps.stream().filter(ts -> now - ts <= ONE_MINUTE).count();
             long countLastHour = timestamps.size();
 
-            if (countLastMinute >= MAX_PER_MINUTE || countLastHour >= MAX_PER_HOUR) {
+            if (countLastMinute >= maxPerMinute || countLastHour >= maxPerHour) {
                 return false;
             }
 
-            // Record this request
             timestamps.addLast(now);
             return true;
         }

@@ -20,4 +20,5 @@ public class LLMRequestEmbedDto {
         llmRequest.setInput(this.input);
         return llmRequest;
     }
+
 }

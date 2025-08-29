@@ -8,10 +8,7 @@ import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
 import com.haekitchenapp.recipeapp.model.request.recipeStage.RecipeStageRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSimilarityDto;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import com.haekitchenapp.recipeapp.service.RecipeStageService;
 import jakarta.validation.Valid;
@@ -37,7 +34,7 @@ public class PublicController {
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Recipe>> getRecipeById(@PathVariable Long id) throws RecipeNotFoundException {
+    public ResponseEntity<ApiResponse<RecipeResponse>> getRecipeById(@PathVariable Long id) throws RecipeNotFoundException {
         log.info("Received request to get recipe by ID: {}", id);
         return recipeService.findById(id);
     }

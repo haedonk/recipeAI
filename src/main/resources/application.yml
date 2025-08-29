@@ -20,7 +20,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   security:
     jwt:
-      secret: ${JWT_SECRET:OkmPA9w2Oj78A0P0LFLknnqu+c}
+      secret: ${JWT_SECRET:hMxZ+rCq6RZwV52TmKTDLn0JwL6CV7KD0y40MAcZujh21t1BUoz7mbIhrqwwh1cboA/JS1OoRQAV317Qv6I3XQ==}
       expiration: ${JWT_EXPIRATION:86400000}
 
 
@@ -79,3 +79,10 @@ logging:
     com.zaxxer.hikari: DEBUG                # Hikari pool general logging
     com.zaxxer.hikari.HikariConfig: DEBUG   # Hikari configuration details
     com.zaxxer.hikari.pool.HikariPool: DEBUG
+
+# Rate limiter configuration
+rate-limiter:
+  max-per-minute: 30
+  max-per-hour: 100
+  one-minute-in-seconds: 60
+  one-hour-in-seconds: 3600

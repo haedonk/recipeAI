@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
 
 @Component
 public class RateLimitFilter implements Filter {
@@ -20,8 +19,8 @@ public class RateLimitFilter implements Filter {
 
     private final RateLimiterService rateLimiterService;
 
-    @Value("${rate.limit.excluded.paths:}")
-    private List<String> excludedPaths;
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
 
     public RateLimitFilter(RateLimiterService rateLimiterService) {
         this.rateLimiterService = rateLimiterService;
@@ -34,43 +33,30 @@ public class RateLimitFilter implements Filter {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse res = (HttpServletResponse) response;
 
+        // Skip rate limiting if environment is local
+        if ("local".equals(activeProfile)) {
+            logger.debug("Rate limiting disabled for local environment");
+            chain.doFilter(request, response);
+            return;
+        }
+
         String path = req.getRequestURI();
-
-        // Skip rate limiting for excluded paths
-        if (isExcludedPath(path)) {
-            logger.debug("Skipping rate limit for excluded path: {}", path);
-            chain.doFilter(request, response);
-            return;
-        }
-
-        // Skip rate limiting for authenticated users
-        if (isAuthenticated()) {
-            logger.debug("Skipping rate limit for authenticated user");
-            chain.doFilter(request, response);
-            return;
-        }
-
-        // Apply rate limiting only for non-authenticated users
         String ip = req.getRemoteAddr();
-        if (!rateLimiterService.isAllowed(ip)) {
-            logger.debug("Rate limit exceeded for IP: {}", ip);
+        boolean allowed;
 
-            // Determine if this is a login attempt or path that should get special handling
-            String requestPath = req.getRequestURI();
-            boolean isAuthRequest = requestPath.contains("/auth/") ||
-                                    requestPath.contains("/login") ||
-                                    requestPath.contains("/api/users/signin");
+        if (isPublicPath(path)) {
+            // Public endpoints → use IP-based rate limiting
+            allowed = rateLimiterService.isAllowed("PUBLIC:" + ip, 30, 100);
+        } else if (isAuthenticated()) {
+            // Authenticated endpoints → use user ID for rate limiting
+            String userId = getUserId();
+            allowed = rateLimiterService.isAllowed("USER:" + userId, 100, 1000);
+        } else {
+            // Non-authenticated, non-public → strict IP-based rate limiting
+            allowed = rateLimiterService.isAllowed("AUTH:" + ip, 10, 30);
+        }
 
-            // If this is a login attempt, slightly decrease their rate count to give them a chance
-            if (isAuthRequest) {
-                // Reduce by 5 requests to give them some breathing room for login
-                rateLimiterService.decreaseRateCount(ip, 5);
-                logger.debug("Decreased rate count for authentication attempt from IP: {}", ip);
-            } else {
-                // For non-auth requests, just decrease by 1 to be slightly forgiving
-                rateLimiterService.decreaseRateCount(ip, 1);
-            }
-
+        if (!allowed) {
             res.setStatus(429);
             res.getWriter().write("Rate limit exceeded. Please create an account for unlimited access.");
             return;
@@ -79,16 +65,26 @@ public class RateLimitFilter implements Filter {
         chain.doFilter(request, response);
     }
 
-    private boolean isExcludedPath(String path) {
-        if (excludedPaths == null || excludedPaths.isEmpty()) {
-            return false;
-        }
-        return excludedPaths.stream().anyMatch(path::startsWith);
+    private boolean isPublicPath(String path) {
+        return path != null && path.startsWith("/public/");
     }
 
     private boolean isAuthenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null && authentication.isAuthenticated() &&
-               !"anonymousUser".equals(authentication.getPrincipal().toString());
+        return authentication != null &&
+                authentication.isAuthenticated() &&
+                !"anonymousUser".equals(authentication.getPrincipal().toString());
+    }
+
+    private String getUserId() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getPrincipal() != null) {
+                return authentication.getName(); // usually the username or user ID
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to extract userId from authentication", e);
+        }
+        return "unknown";
     }
 }

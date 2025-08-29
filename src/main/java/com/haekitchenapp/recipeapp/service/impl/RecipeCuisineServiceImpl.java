@@ -77,6 +77,9 @@ public class RecipeCuisineServiceImpl implements RecipeCuisineService {
                 recipeCuisine.setCuisine(cuisine);
 
                 recipeCuisineRepository.save(recipeCuisine);
+                log.info("Successfully associated recipe ID: {} with cuisine ID: {}", recipeId, cuisineId);
+            } else {
+                log.info("Association already exists for recipe ID: {} and cuisine ID: {}", recipeId, cuisineId);
             }
         }
     }

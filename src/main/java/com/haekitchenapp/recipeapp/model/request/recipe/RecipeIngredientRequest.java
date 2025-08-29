@@ -15,8 +15,8 @@ public class RecipeIngredientRequest {
     private String name;
 
     @NotBlank
-    private String quantity;
+    private Float quantity;
 
     @NotNull
-    private Integer unitId;
+    private Long unitId;
 }

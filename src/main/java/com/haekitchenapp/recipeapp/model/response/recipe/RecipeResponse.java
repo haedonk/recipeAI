@@ -1,6 +1,5 @@
 package com.haekitchenapp.recipeapp.model.response.recipe;
 
-import com.haekitchenapp.recipeapp.model.request.recipe.RecipeIngredientRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,7 +22,7 @@ public class RecipeResponse {
 
     private String imageUrl;
 
-    private Set<RecipeIngredientRequest> ingredients;
+    private Set<RecipeIngredientResponse> ingredients;
 
     private Integer prepTime;
     private Integer cookTime;

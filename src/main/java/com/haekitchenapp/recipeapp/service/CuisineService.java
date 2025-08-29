@@ -1,5 +1,4 @@
 package com.haekitchenapp.recipeapp.service;
-
 import com.haekitchenapp.recipeapp.entity.Cuisine;
 
 import java.util.List;
@@ -69,3 +68,4 @@ public interface CuisineService {
      */
     boolean existsByName(String name);
 }
+

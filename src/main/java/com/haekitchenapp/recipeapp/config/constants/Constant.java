@@ -12,7 +12,7 @@ public class Constant {
                     "with no numbering, no line breaks, and no extra punctuation.";
 
     public static final String EMBED_PROMPT =
-            "Generate a semantic embedding vector for the following text, focusing on meaning and overall context: ";
+            "Generate a semantic embedding for the following recipe text, capturing its ingredients, cooking methods, and overall meaning:";
 
     public static final String SUMMARIZE_PROMPT =
             "Summarize the following cooking instructions into 1–2 concise, complete sentences, capturing the core steps" +

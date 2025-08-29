@@ -1,13 +1,16 @@
 package com.haekitchenapp.recipeapp.utility;
 
 import com.haekitchenapp.recipeapp.entity.*;
+import com.haekitchenapp.recipeapp.exception.UnitNotFoundException;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeIngredientRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.request.recipeStage.RecipeStageRequest;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse;
+import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
-import com.haekitchenapp.recipeapp.repository.RecipeStageRepository;
+import com.haekitchenapp.recipeapp.service.IngredientService;
+import com.haekitchenapp.recipeapp.service.UnitService;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +22,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RecipeMapper {
 
-    private final IngredientRepository ingredientRepository;
+    private final UnitService unitService;
+    private final IngredientService ingredientService;
+
 
     public Recipe toEntity(RecipeRequest request) {
         Recipe recipe = new Recipe();
@@ -42,19 +47,19 @@ public class RecipeMapper {
     }
 
     private RecipeIngredient mapToRecipeIngredient(RecipeIngredientRequest riRequest, Recipe recipe) {
-        Ingredient ingredient = ingredientRepository
-            .findByNameIgnoreCase(riRequest.getName())
-            .orElseGet(() -> {
-                Ingredient newIng = new Ingredient();
-                newIng.setName(riRequest.getName().toLowerCase());
-                return ingredientRepository.save(newIng);
-            });
+        Ingredient ingredient = ingredientService.getIngredientElseInsert(riRequest.getName());
 
         RecipeIngredient ri = new RecipeIngredient();
         ri.setRecipe(recipe);
         ri.setIngredient(ingredient);
         ri.setQuantity(riRequest.getQuantity());
-        ri.setUnitId(riRequest.getUnitId());
+
+        // Validate unit ID exists before setting it
+        Long unitId = riRequest.getUnitId();
+        if (unitId != null && !unitService.existsById(unitId)) {
+            throw new UnitNotFoundException("Unit not found with ID: " + unitId);
+        }
+        ri.setUnitId(unitId);
 
         return ri;
     }
@@ -79,19 +84,19 @@ public class RecipeMapper {
     }
 
     private RecipeStageIngredient mapToRecipeIngredient(RecipeIngredientRequest riRequest, RecipeStage recipe) {
-        Ingredient ingredient = ingredientRepository
-            .findByNameIgnoreCase(riRequest.getName())
-            .orElseGet(() -> {
-                Ingredient newIng = new Ingredient();
-                newIng.setName(riRequest.getName().toLowerCase());
-                return ingredientRepository.save(newIng);
-            });
+        Ingredient ingredient = ingredientService.getIngredientElseInsert(riRequest.getName());
 
         RecipeStageIngredient ri = new RecipeStageIngredient();
         ri.setRecipe(recipe);
         ri.setIngredient(ingredient);
         ri.setQuantity(riRequest.getQuantity());
-        ri.setUnitId(riRequest.getUnitId());
+
+        // Validate unit ID exists before setting it
+        Long unitId = riRequest.getUnitId();
+        if (unitId != null && !unitService.existsById(unitId)) {
+            throw new UnitNotFoundException("Unit not found with ID: " + unitId);
+        }
+        ri.setUnitId(unitId);
 
         return ri;
     }
@@ -129,7 +134,7 @@ public class RecipeMapper {
         return toEntity(recipeRequest);
     }
 
-    public RecipeResponse toRecipeResponse(Recipe recipe) {
+    public RecipeResponse toRecipeResponse(Recipe recipe, boolean raw) {
         RecipeResponse recipeResponse = new RecipeResponse();
         recipeResponse.setId(recipe.getId());
         recipeResponse.setCreatedBy(recipe.getCreatedBy());
@@ -140,21 +145,44 @@ public class RecipeMapper {
         recipeResponse.setCookTime(recipe.getCookTime());
         recipeResponse.setServings(recipe.getServings());
 
-        Set<RecipeIngredientRequest> ingredients = recipe.getIngredients().stream()
-                .map(this::toRecipeIngredientRequest)
+        Set<RecipeIngredientResponse> ingredients = recipe.getIngredients().stream()
+                .map(ingredientRecipe -> toRecipeIngredientRequest(ingredientRecipe, raw))
                 .collect(Collectors.toSet());
 
         recipeResponse.setIngredients(ingredients);
         return recipeResponse;
     }
 
-    private RecipeIngredientRequest toRecipeIngredientRequest(RecipeIngredient ri) {
-        return new RecipeIngredientRequest(
+    private RecipeIngredientResponse toRecipeIngredientRequest(RecipeIngredient ri, boolean raw) {
+        return new RecipeIngredientResponse(
                 ri.getId(),
                 ri.getIngredient().getName(),
-                ri.getQuantity(),
-                ri.getUnitId()
+                raw ?  ri.getQuantity().toString() : normalizeQuantity(ri.getQuantity().toString()),
+                raw ?  ri.getQuantity() : null,
+                getUnit(ri.getUnitId())
         );
+    }
+
+    private @NotNull String getUnit(Long unitId) {
+        return unitService.getUnitNameById(unitId);
+    }
+
+    private @NotBlank String normalizeQuantity(String quantity) {
+        int numerator = (int) (Double.parseDouble(quantity) * 10);
+        int denominator = 10;
+        if (numerator % denominator == 0) {
+            return String.valueOf(numerator / denominator);
+        } else {
+            return numerator + "/" + denominator;
+        }
+    }
+
+    public RecipeDetailsDto toSimpleDto(RecipeSummaryProjection recipe, List<Long> ingredients) {
+
+        List<String> ingredientNames = ingredients.stream()
+                .map(ingredientService::getIngredientNameById).toList();
+
+        return new RecipeDetailsDto(recipe.getTitle(), ingredientNames, recipe.getInstructions());
     }
 
     public RecipeDetailsDto toLlmDetailsDto(Recipe recipe) {

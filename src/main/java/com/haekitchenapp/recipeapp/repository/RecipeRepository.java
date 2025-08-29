@@ -3,6 +3,7 @@ package com.haekitchenapp.recipeapp.repository;
 import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSimilarityDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSummaryProjection;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,6 +28,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
     @Query("SELECT r FROM Recipe r JOIN FETCH r.ingredients WHERE r.id = :id")
     Optional<Recipe> findByIdWithIngredients(@Param("id") Long id);
+
+    @Query("SELECT r FROM Recipe r WHERE r.id = :id")
+    Optional<RecipeSummaryProjection> findByIdWithSimple(@Param("id") Long id);
 
     @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto(r.title, COUNT(r.title)) " +
             "FROM Recipe r " +

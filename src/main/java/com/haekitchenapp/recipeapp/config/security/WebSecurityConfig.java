@@ -4,6 +4,7 @@ package com.haekitchenapp.recipeapp.config.security;
 import com.haekitchenapp.recipeapp.security.AuthTokenFilter;
 import com.haekitchenapp.recipeapp.service.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -33,6 +34,9 @@ public class WebSecurityConfig {
 
     @Autowired
     UserDetailsServiceImpl userDetailsService;
+
+    @Value("${security.public-api.enabled:false}")
+    private boolean publicApiEnabled;
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -75,6 +79,7 @@ public class WebSecurityConfig {
 
         return http.build();
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

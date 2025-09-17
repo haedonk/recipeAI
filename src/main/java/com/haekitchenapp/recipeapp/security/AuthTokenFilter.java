@@ -36,7 +36,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         try {
             String jwt = parseJwt(request);
             logger.debug("Extracted JWT token: {}", jwt != null ? "Present" : "Not found");
-            
+
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
                 logger.debug("JWT token is valid");
 

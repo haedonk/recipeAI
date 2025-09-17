@@ -10,13 +10,22 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RecipeIngredientRequest {
+
+    public RecipeIngredientRequest(Long id, @NotBlank String name, @NotBlank String quantity, Long unitId) {
+        this.id = id;
+        this.name = name;
+        this.quantity = quantity;
+        this.unitId = unitId;
+    }
+
     private Long id;
     @NotBlank
     private String name;
 
     @NotBlank
-    private Float quantity;
+    private String quantity;
 
-    @NotNull
     private Long unitId;
+
+    private String unitName;
 }

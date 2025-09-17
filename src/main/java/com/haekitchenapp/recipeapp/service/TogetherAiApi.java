@@ -57,7 +57,7 @@ public class TogetherAiApi {
         llmQueryLogRepository.save(new LlmQueryLog(
                 response.getId(), model, prompt, llmResponse,
                 response.getUsage().getTotalTokens().intValue(), response.getUsage().getPromptTokens().intValue(),
-                response.getUsage().getCompletionTokens().intValue(), recipeId
+                response.getUsage().getCompletionTokens().intValue(), 0, recipeId
         ));
     }
 

@@ -14,8 +14,15 @@ import java.util.Set;
 @AllArgsConstructor
 public class RecipeSimilarityRequest {
 
+    public RecipeSimilarityRequest(String prompt){
+        this.prompt = prompt;
+        this.excludeIngredients = "";
+    }
+
     @NotBlank
     private String title;
+
+    private String prompt;
 
     private String cuisine;
 
@@ -31,6 +38,10 @@ public class RecipeSimilarityRequest {
 
     @NotNull
     private Integer limit;
+
+    public boolean isPromptBased(){
+        return this.prompt != null && !this.prompt.isEmpty();
+    }
 
     @Override
     public String toString() {

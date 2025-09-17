@@ -1,6 +1,7 @@
 package com.haekitchenapp.recipeapp.model.response.recipe;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
 @Getter
@@ -17,6 +18,7 @@ public class RecipeTitleDto {
 
     private Long id;
     private String title;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String instructions;
 
 }

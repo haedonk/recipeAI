@@ -1,7 +1,6 @@
 package com.haekitchenapp.recipeapp.service;
 
 import com.haekitchenapp.recipeapp.entity.Recipe;
-import com.haekitchenapp.recipeapp.entity.RecipeIngredient;
 import com.haekitchenapp.recipeapp.exception.EmbedFailureException;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
@@ -9,15 +8,14 @@ import com.haekitchenapp.recipeapp.model.request.recipe.EmbedUpdateRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
-import com.haekitchenapp.recipeapp.model.response.batch.Status;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.repository.RecipeIngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
-import com.haekitchenapp.recipeapp.repository.RecipeUpdateFailureRepository;
 import com.haekitchenapp.recipeapp.utility.RecipeMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,28 +38,8 @@ public class RecipeService {
 
     private final RecipeIngredientRepository recipeIngredientRepository;
 
-    private final RecipeUpdateFailureRepository recipeUpdateFailureRepository;
-
     private final RecipeMapper recipeMapper;
 
-    private final TogetherAiApi togetherAiApi;
-
-    /**
-     * Fetches all recipes from the repository.
-     *
-     * @return a response entity containing a list of all recipes
-     * @throws RecipeNotFoundException if no recipes are found
-     */
-    public ResponseEntity<ApiResponse<List<Recipe>>> findAll() throws RecipeNotFoundException {
-        log.info("Fetching all recipes");
-        List<Recipe> recipes = recipeRepository.findAll();
-        if (recipes.isEmpty()) {
-            log.warn("No recipes found");
-            throw new RecipeNotFoundException("No recipes found");
-        }
-        log.info("Found {} recipes", recipes.size());
-        return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
-    }
 
     public ResponseEntity<ApiResponse<RecipeDuplicatesByTitleResponse>> findDuplicateTitles(int page) {
         log.info("Finding duplicate recipe titles for page {}", page);
@@ -98,131 +76,6 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes retrieved successfully", recipes));
     }
 
-    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchByAdvancedEmbedding(RecipeSimilarityRequest query) {
-        log.info("Searching recipes by advanced embedding with query: {}", query);
-        if(query.getLimit() <= 0) {
-            throw new IllegalArgumentException("Limit must be greater than 0");
-        }
-        String embedding = getEmbeddingStringForSimilaritySearch(query.toString());
-        List<RecipeSimilarityDto> recipes = recipeRepository.findTopByEmbeddingSimilarity(embedding, query.getLimit() + 30,
-                "%" + query.getTitle().toLowerCase() + "%");
-        Set<String> titles = new HashSet<>();
-        recipes = recipes.stream()
-                .filter(recipe -> {
-                    if(titles.contains(recipe.getTitle().toLowerCase())) {
-                        log.info("Duplicate recipe title found: {}", recipe.getTitle());
-                        return false; // Filter out duplicates
-                    } else {
-                        titles.add(recipe.getTitle().toLowerCase());
-                        return true; // Keep unique recipes
-                    }
-                }).toList();
-        List<Recipe> recipeWithIngredients = recipes.stream()
-                .map(recipe -> recipeRepository.findByIdWithIngredients(recipe.getId()))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .toList();
-        rankAndSortRecipe(recipes, recipeWithIngredients, query);
-        recipes = recipes.stream()
-                .sorted(Comparator
-                        .comparing(RecipeSimilarityDto::getTitleSimilarityRank).reversed()
-                        .thenComparing(RecipeSimilarityDto::getSimilarityRank, Comparator.reverseOrder())
-                        .thenComparing(RecipeSimilarityDto::getIncludesIngredientsCount, Comparator.reverseOrder()))
-                .limit(query.getLimit())
-                .collect(Collectors.toList());
-        if (recipes.isEmpty()) {
-            log.warn("No recipes found with advanced embedding for query: {}", query);
-            return ResponseEntity.ok(ApiResponse.success("No recipes found with advanced embedding for query: " + query));
-        }
-        log.info("Found {} recipes with advanced embedding for query: {}", recipes.size(), query);
-        return ResponseEntity.ok(ApiResponse.success("Recipes with advanced embedding retrieved successfully", recipes));
-    }
-
-    private void rankAndSortRecipe(List<RecipeSimilarityDto> recipes, List<Recipe> recipeIngredients, RecipeSimilarityRequest query) {
-        String queryString = String.join(" ", query.getTitle(), query.getCuisine(),
-                query.getIncludeIngredients(), query.getMealType(), query.getDetailLevel());
-        Set<String> parsedWordsNoArticles = Arrays.stream(queryString.split("\\s+"))
-                .map(String::toLowerCase)
-                .filter(word -> !word.isBlank() && !word.matches("^(a|an|the|and|or|but)$"))
-                .collect(Collectors.toSet());
-        log.info("Parsed words for ranking: {}", parsedWordsNoArticles);
-        log.info("Removing recipes with exclude ingredients: {}", query.getExcludeIngredients());
-        Set<String> excludeIngredients = Arrays.stream(query.getExcludeIngredients().split(","))
-                .map(String::trim)
-                .collect(Collectors.toSet());
-        List<Long> idsToRemove = recipeIngredients.stream()
-                .filter(recipe -> recipe.getIngredients().stream()
-                        .anyMatch(ingredient -> excludeIngredients.contains(ingredient.getIngredient().getName().toLowerCase())))
-                .map(Recipe::getId)
-                .collect(Collectors.toList());
-        log.info("Removing recipes with IDs: {}", idsToRemove);
-        recipes = recipes.stream()
-                .filter(recipe -> !idsToRemove.contains(recipe.getId()))
-                .collect(Collectors.toList());
-        log.info("Scoring recipe similarity for {} recipes", recipes.size());
-        for (RecipeSimilarityDto recipe : recipes) {
-            scoreRecipeTitleSimilarity(recipe, query);
-            scoreRecipeWordSimilarity(recipe, query, parsedWordsNoArticles);
-            scoreIncludesIngredientsCount(recipe, recipeIngredients);
-        }
-        log.info("Recipes after ranking: {}", recipes);
-    }
-
-    private void scoreRecipeTitleSimilarity(RecipeSimilarityDto recipe, RecipeSimilarityRequest query) {
-        String recipeTitle = recipe.getTitle().toLowerCase().trim();
-        String queryTitle = query.getTitle().toLowerCase().trim();
-        long titleSimilarityCount = Arrays.stream(recipeTitle.split("\\s+"))
-                .filter(queryTitle::contains)
-                .peek(word -> log.info("Matching word in title: {}", word))
-                .count();
-        if(recipeTitle.split("\\s+").length == queryTitle.split("\\s+").length) {
-            titleSimilarityCount += 1;
-        }
-        recipe.setTitleSimilarityRank((int) titleSimilarityCount);
-        log.info("Recipe {} has a title similarity score of {}", recipe.getTitle(), recipe.getSimilarity());
-    }
-
-    private void scoreIncludesIngredientsCount(RecipeSimilarityDto recipe, List<Recipe> recipeIngredients) {
-        long includesIngredientsCount = recipeIngredients.stream()
-                .filter(ingredient -> ingredient.getId().equals(recipe.getId()))
-                .mapToLong(ingredient -> ingredient.getIngredients().size())
-                .peek(count -> log.info("Includes ingredients count for recipe {}: {}", recipe.getTitle(), count))
-                .sum();
-        recipe.setIncludesIngredientsCount((int) includesIngredientsCount);
-        log.info("Recipe includes ingredients count for {}: {}", recipe.getTitle(), includesIngredientsCount);
-    }
-
-    private void scoreRecipeWordSimilarity(RecipeSimilarityDto recipe, RecipeSimilarityRequest query,
-                                           Set<String> parsedWordsNoArticles) {
-        String recipeString = String.join(" ", recipe.getTitle(), recipe.getSummary());
-        Set<String> recipeWordsNoArticles = Arrays.stream(recipeString.split("\\s+"))
-                .map(String::toLowerCase)
-                .filter(word -> !word.isBlank() && !word.matches("^(a|an|the|and|or|but)$"))
-                .collect(Collectors.toSet());
-        long matchingWordsCount = parsedWordsNoArticles.stream()
-                .filter(recipeWordsNoArticles::contains)
-                .peek(word -> log.info("Matching word: {}", word))
-                .count();
-        recipe.setSimilarityRank((int) matchingWordsCount);
-        log.info("Recipe {} has {} matching words with query, similarity rank: {}", recipe.getTitle(), matchingWordsCount, recipe.getSimilarityRank());
-    }
-
-
-    public String getEmbeddingStringForSimilaritySearch(String query) {
-        log.info("Getting embedding for query: {}", query);
-        if (query == null || query.isBlank()) {
-            throw new IllegalArgumentException("Query must not be null or empty");
-        }
-        Double[] embedding = togetherAiApi.embed(query);
-        if (embedding == null || embedding.length == 0) {
-            log.warn("No embedding returned for query: {}", query);
-            throw new EmbedFailureException("No embedding found for query: " + query);
-        }
-        log.info("Embedding retrieved successfully for query: {}", query);
-        return Arrays.stream(embedding)
-                .map(String::valueOf)
-                .collect(Collectors.joining(",", "[", "]"));
-    }
 
 /**
      * Searches for recipe titles containing the specified title.
@@ -275,24 +128,36 @@ public class RecipeService {
 
 
 
-    public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(Long id) throws RecipeNotFoundException, ExecutionException, InterruptedException {
+    public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetailsResponse(Long id) throws RecipeNotFoundException {
         log.info("Finding recipe details by ID: {}", id);
         if (id == null) {
             throw new IllegalArgumentException("Recipe ID must not be null");
         }
-
-        CompletableFuture<Optional<RecipeSummaryProjection>> simpleRecipeFuture = getSimpleRecipe(id);
-        CompletableFuture<List<Long>> ingredientsFuture = getRecipeIngredients(id);
-
-        CompletableFuture.allOf(simpleRecipeFuture, ingredientsFuture).join();
-
-        RecipeSummaryProjection recipeDetails = simpleRecipeFuture.get()
-                .orElseThrow(() -> new RecipeNotFoundException("Recipe details not found with ID: " + id));
-        List<Long> recipeIngredients = ingredientsFuture.get();
-
-        RecipeDetailsDto recipeDetailsDto = recipeMapper.toSimpleDto(recipeDetails, recipeIngredients);
+        RecipeDetailsDto recipeDetailsDto = getRecipeDetails(id);
 
         return ResponseEntity.ok(ApiResponse.success("Recipe details retrieved successfully", recipeDetailsDto));
+    }
+
+    public RecipeDetailsDto getRecipeDetails(Long id) {
+        CompletableFuture<Optional<RecipeSummaryProjection>> simpleRecipeFuture = getSimpleRecipe(id);
+        CompletableFuture<List<Long>> ingredientsFuture = getRecipeIngredients(id);
+        try {
+            CompletableFuture.allOf(simpleRecipeFuture, ingredientsFuture).get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Error fetching recipe details for ID {}: {}", id, e.getMessage());
+            throw new RecipeNotFoundException(e.getMessage());
+        }
+        RecipeSummaryProjection recipeDetails;
+        List<Long> recipeIngredients;
+        try {
+            recipeDetails = simpleRecipeFuture.get()
+                    .orElseThrow(() -> new RecipeNotFoundException("Recipe details not found with ID: " + id));
+            recipeIngredients = ingredientsFuture.get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Error retrieving recipe details for ID {}: {}", id, e.getMessage());
+            throw new RecipeNotFoundException(e.getMessage());
+        }
+        return recipeMapper.toSimpleDto(recipeDetails, recipeIngredients, id);
     }
 
     /**
@@ -355,18 +220,22 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipes created successfully", savedRecipes));
     }
 
-    /**
-     * Creates a new recipe.
-     *
-     * @param recipe the recipe to create
-     * @return the created recipe
-     * @throws IllegalArgumentException if the recipe ID is not null or if a data integrity violation occurs
-     */
     public ResponseEntity<ApiResponse<Recipe>> create(RecipeRequest recipe) {
+        return create(recipe, false);
+    }
+
+    public ResponseEntity<ApiResponse<Recipe>> create(RecipeRequest recipe, Boolean aiGenerated) {
         if(recipe.getId() != null) recipe.setId(null); // Ensure ID is null for creation
-        Recipe saved = saveRecipe(recipeMapper.toEntity(recipe));
+        Recipe saved = createRecipe(recipe, aiGenerated);
         log.info("Recipe created successfully: {}", saved);
         return ResponseEntity.ok(ApiResponse.success("Recipe created successfully", saved));
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public Recipe createRecipe(RecipeRequest recipe, Boolean aiGenerated) {
+        if(recipe.getId() != null) recipe.setId(null); // Ensure ID is null for creation
+        if(aiGenerated != null) recipe.setAiGenerated(aiGenerated);
+        return saveRecipe(recipeMapper.toEntity(recipe));
     }
 
     /**
@@ -507,28 +376,6 @@ public class RecipeService {
                 .orElseThrow(() -> new RecipeNotFoundException("Recipe title dto not found with ID: " + id));
     }
 
-    public Recipe getRecipeByIdWithIngredients(Long id) {
-    log.info("Fetching recipe by ID with ingredients: {}", id);
-        if (id == null) {
-            throw new IllegalArgumentException("Recipe ID must not be null");
-        }
-        return recipeRepository.findByIdWithIngredients(id)
-                .orElseThrow(() -> new RecipeNotFoundException("Recipe not found with ID: " + id));
-    }
 
-    public Status getRecipeMassageDetails() {
-    log.info("Fetching recipe massage details");
-        long totalRecipes = recipeRepository.count();
-        Long recipesWithEmbedding = recipeRepository.countByEmbeddingIsNotNull();
-        Long failedRecipes = recipeUpdateFailureRepository.count();
-        Status status = new Status();
-        status.setTotal(totalRecipes);
-        status.setCompleted(recipesWithEmbedding);
-        status.setFailed(failedRecipes);
-        status.setPercentage(
-                totalRecipes == 0 ? 0f : (float) recipesWithEmbedding / totalRecipes * 100
-        );
-        return status;
-    }
 
 }

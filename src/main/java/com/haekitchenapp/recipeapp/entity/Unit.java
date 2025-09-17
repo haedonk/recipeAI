@@ -17,4 +17,5 @@ public class Unit {
     @Column(unique = true, nullable = false)
     private String name;
 
+    private Boolean aiGenerated = false;
 }

@@ -63,7 +63,7 @@ public interface RecipeCuisineService {
      * @param recipeId the recipe ID
      * @return list of cuisines
      */
-    List<Cuisine> getRecipeCuisineList(Long recipeId);
+    List<String> getRecipeCuisineList(Long recipeId);
 
     /**
      * Update cuisines for a recipe (remove existing associations and create new ones)

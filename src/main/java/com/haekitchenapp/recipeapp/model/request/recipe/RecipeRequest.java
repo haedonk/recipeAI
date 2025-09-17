@@ -36,4 +36,7 @@ public class RecipeRequest {
     private Integer prepTime;
     private Integer cookTime;
     private Integer servings;
+
+    private Boolean aiGenerated = false;
+    private Long cleanedFrom;
 }

@@ -68,6 +68,18 @@ spring:
     settings:
       chunk-size: ${BATCH_CHUNK_SIZE:10}
 
+# Rate limiter configuration
+rate-limiter:
+  max-per-minute: 30
+  max-per-hour: 100
+  one-minute-in-seconds: 60
+  one-hour-in-seconds: 3600
+
+openai:
+  api-key: ${OPENAI_API_KEY}
+  base-url: https://api.openai.com/v1
+  chat-endpoint: /v1/chat/completions
+  chat-model: gpt-5-nano
 
 #remove later
 logging:
@@ -79,10 +91,3 @@ logging:
     com.zaxxer.hikari: DEBUG                # Hikari pool general logging
     com.zaxxer.hikari.HikariConfig: DEBUG   # Hikari configuration details
     com.zaxxer.hikari.pool.HikariPool: DEBUG
-
-# Rate limiter configuration
-rate-limiter:
-  max-per-minute: 30
-  max-per-hour: 100
-  one-minute-in-seconds: 60
-  one-hour-in-seconds: 3600

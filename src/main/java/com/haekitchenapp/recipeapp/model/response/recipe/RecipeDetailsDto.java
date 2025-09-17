@@ -17,6 +17,15 @@ public class RecipeDetailsDto {
         this.embedSummary = getFullSummary(instructions);
     }
 
+    public RecipeDetailsDto(String title, List<String> ingredients, String instructions, Long id) {
+        this.id = id;
+        this.title = title;
+        this.instructions = instructions;
+        this.ingredients = ingredients;
+        this.embedSummary = getFullSummary(instructions);
+    }
+
+    private Long id;
     private String title;
     private List<String> ingredients;
     private String instructions;

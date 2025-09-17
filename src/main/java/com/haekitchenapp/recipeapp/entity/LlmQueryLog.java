@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class LlmQueryLog {
 
     public LlmQueryLog(String id, String model, String prompt, String response, int totalTokens,
-                        int promptTokens, int responseTokens, Long recipeId) {
+                        int promptTokens, int responseTokens, int reasoningTokens, Long recipeId) {
         this.id = id;
         this.model = model;
         this.prompt = prompt;
@@ -23,6 +23,7 @@ public class LlmQueryLog {
         this.totalTokens = totalTokens;
         this.promptTokens = promptTokens;
         this.responseTokens = responseTokens;
+        this.reasoningTokens = reasoningTokens;
         this.recipeId = recipeId;
     }
 
@@ -50,6 +51,18 @@ public class LlmQueryLog {
 
     @Column(name = "prompt_tokens", nullable = false)
     private int promptTokens;
+
+    @Column(name = "reasoning_tokens")
+    private Integer reasoningTokens;
+
+    @Column(name = "input_cost")
+    private Double inputCost;
+
+    @Column(name = "output_cost")
+    private Double outputCost;
+
+    @Column(name = "total_cost")
+    private Double totalCost;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

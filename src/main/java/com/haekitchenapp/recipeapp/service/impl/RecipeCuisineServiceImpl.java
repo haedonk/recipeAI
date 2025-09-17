@@ -26,6 +26,7 @@ public class RecipeCuisineServiceImpl implements RecipeCuisineService {
     private final RecipeCuisineRepository recipeCuisineRepository;
     private final RecipeRepository recipeRepository;
     private final CuisineRepository cuisineRepository;
+    private final CuisineServiceImpl cuisineService;
 
     @Override
     @Transactional
@@ -137,14 +138,23 @@ public class RecipeCuisineServiceImpl implements RecipeCuisineService {
     }
 
     @Override
-    public List<Cuisine> getRecipeCuisineList(Long recipeId) {
+    public List<String> getRecipeCuisineList(Long recipeId) {
         log.info("Getting cuisines for recipe ID: {}", recipeId);
 
         if (!recipeRepository.existsById(recipeId)) {
             throw new CuisineNotFoundException("Recipe not found with id: " + recipeId);
         }
 
-        return cuisineRepository.findByRecipeId(recipeId);
+        List<RecipeCuisine> recipeCuisines = recipeCuisineRepository.findByRecipeId(recipeId);
+
+        List<String> cuisineNames = recipeCuisines.stream()
+                .map(rc -> rc.getCuisine().getName())
+                .toList();
+
+        if(cuisineNames.isEmpty())
+            throw new CuisineNotFoundException("No cuisines found for recipe with id: " + recipeId);
+
+        return cuisineNames;
     }
 
     @Override

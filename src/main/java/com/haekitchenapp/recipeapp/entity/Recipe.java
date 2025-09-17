@@ -36,11 +36,13 @@ public class Recipe extends BaseEntity {
     private Integer servings;
     private Long createdBy;
     private Boolean reprocessed;
+    @Column(updatable = false)
+    private Boolean aiGenerated = false;
+    private Long cleanedFrom;
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private Set<RecipeIngredient> ingredients;
-
 
     @JsonIgnore
     public String getEmbedString(){
@@ -66,4 +68,3 @@ public class Recipe extends BaseEntity {
                 '}';
     }
 }
-

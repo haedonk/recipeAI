@@ -12,4 +12,16 @@ public class RoleContent {
     public static RoleContent getUserRole(String content) {
         return new RoleContent("user", content);
     }
+
+    public boolean isUserRole() {
+        return "user".equalsIgnoreCase(this.role);
+    }
+
+    public boolean isAssistantRole() {
+        return "assistant".equalsIgnoreCase(this.role);
+    }
+
+    public boolean isSystemRole() {
+        return "system".equalsIgnoreCase(this.role);
+    }
 }

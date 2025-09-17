@@ -1,19 +1,16 @@
 package com.haekitchenapp.recipeapp.controller;
 
-import com.haekitchenapp.recipeapp.entity.Ingredient;
 import com.haekitchenapp.recipeapp.entity.Recipe;
-import com.haekitchenapp.recipeapp.entity.RecipeStage;
 import com.haekitchenapp.recipeapp.entity.Unit;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.recipe.EmbedUpdateRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
-import com.haekitchenapp.recipeapp.model.request.recipeStage.RecipeStageRequest;
 import com.haekitchenapp.recipeapp.model.response.*;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
+import com.haekitchenapp.recipeapp.service.RecipeAIService;
 import com.haekitchenapp.recipeapp.service.RecipeService;
-import com.haekitchenapp.recipeapp.service.RecipeStageService;
 import com.haekitchenapp.recipeapp.service.UnitService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +35,7 @@ public class RecipeController {
     private UnitService unitService;
 
     @Autowired
-    RecipeStageService recipeStageService;
+    RecipeAIService recipeAIService;
 
     // Create endpoints
     @PostMapping
@@ -81,22 +78,10 @@ public class RecipeController {
         return recipeService.findById(id);
     }
 
-    @GetMapping("/stage/{id}")
-    public ResponseEntity<ApiResponse<RecipeStage>> getRecipeStageById(@PathVariable Long id) throws RecipeNotFoundException {
-        log.info("Received request to get recipe stage by ID: {}", id);
-        return recipeStageService.findById(id);
-    }
-
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> searchRecipesByTitle(@RequestParam String title) throws RecipeSearchFoundNoneException {
         log.info("Received request to search recipes by title: {}", title);
         return recipeService.searchByTitle(title);
-    }
-
-    @PostMapping("/searchSimilarity")
-    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchRecipesByTitleSimilarity(@RequestBody @Valid RecipeSimilarityRequest query) throws RecipeSearchFoundNoneException {
-        log.info("Received request to search recipes by query similarity: {}", query);
-        return recipeService.searchByAdvancedEmbedding(query);
     }
 
     @GetMapping("/findByTitle/{title}")
@@ -122,7 +107,7 @@ public class RecipeController {
     public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetails(@PathVariable Long id) throws RecipeNotFoundException,
             ExecutionException, InterruptedException {
         log.info("Received request to get recipe details for ID: {}", id);
-        return recipeService.getRecipeDetails(id);
+        return recipeService.getRecipeDetailsResponse(id);
     }
 
     @GetMapping("/duplicates/{page}")
@@ -130,23 +115,6 @@ public class RecipeController {
         log.info("Received request to get duplicate recipes");
         return recipeService.findDuplicateTitles(page);
     }
-
-    // removing the all endpoint for now, its resource intensive and not needed for the current use case.
-//    @GetMapping("/all")
-//    public ResponseEntity<ApiResponse<List<Recipe>>> getAllRecipes() throws RecipeNotFoundException {
-//        log.info("Received request to get all recipes");
-//        return recipeService.findAll();
-//    }
-
-
-
-    // Delete endpoints
-    // need to update to take a list.  Delete all is not a good idea, but for testing purposes it is ok.
-//    @DeleteMapping("/deleteAll")
-//    public ResponseEntity<ApiResponse<Object>> deleteAllRecipes() {
-//        log.info("Received request to delete all recipes");
-//        return recipeService.deleteAll();
-//    }
 
     @PostMapping("/deleteList")
     public ResponseEntity<ApiResponse<Object>> deleteRecipesByIds(@RequestBody List<Long> ids) {

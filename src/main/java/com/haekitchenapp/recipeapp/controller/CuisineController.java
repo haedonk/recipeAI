@@ -1,9 +1,14 @@
 package com.haekitchenapp.recipeapp.controller;
 
 import com.haekitchenapp.recipeapp.entity.Cuisine;
+import com.haekitchenapp.recipeapp.entity.MealType;
+import com.haekitchenapp.recipeapp.entity.Recipe;
+import com.haekitchenapp.recipeapp.entity.RecipeMeal;
 import com.haekitchenapp.recipeapp.exception.CuisineNotFoundException;
 import com.haekitchenapp.recipeapp.service.CuisineService;
 import com.haekitchenapp.recipeapp.service.RecipeCuisineService;
+import com.haekitchenapp.recipeapp.service.RecipeMealService;
+import com.haekitchenapp.recipeapp.service.RecipeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +32,7 @@ public class CuisineController {
 
     private final CuisineService cuisineService;
     private final RecipeCuisineService recipeCuisineService;
+    private final RecipeMealService recipeMealService;
 
     /**
      * Get all cuisines
@@ -103,7 +109,7 @@ public class CuisineController {
      * @return list of cuisines
      */
     @GetMapping("/recipe/{recipeId}")
-    public ResponseEntity<List<Cuisine>> getCuisinesForRecipe(@PathVariable Long recipeId) {
+    public ResponseEntity<List<String>> getCuisinesForRecipe(@PathVariable Long recipeId) {
         log.info("Getting cuisines for recipe ID: {}", recipeId);
         return ResponseEntity.ok(recipeCuisineService.getRecipeCuisineList(recipeId));
     }
@@ -192,5 +198,14 @@ public class CuisineController {
             @PathVariable Integer cuisineId) {
         log.info("Checking if recipe ID: {} is associated with cuisine ID: {}", recipeId, cuisineId);
         return ResponseEntity.ok(recipeCuisineService.isRecipeAssociatedWithCuisine(recipeId, cuisineId));
+    }
+
+    @PostMapping("/recipe/{recipeId}/mealtypes")
+    public ResponseEntity<String> associateRecipeWithMealTypes(
+            @PathVariable Long recipeId,
+            @Valid @RequestBody Set<Short> cuisineIds) {
+        log.info("Associating recipe ID: {} with multiple cuisines", recipeId);
+        recipeMealService.associateRecipeWithmealTypes(recipeId, cuisineIds);
+        return ResponseEntity.ok("Recipe successfully associated with meal types");
     }
 }

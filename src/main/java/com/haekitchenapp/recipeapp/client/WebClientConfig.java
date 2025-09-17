@@ -1,5 +1,6 @@
 package com.haekitchenapp.recipeapp.client;
 
+import com.haekitchenapp.recipeapp.config.api.OpenAiConfig;
 import com.haekitchenapp.recipeapp.config.api.TogetherAiConfig;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -46,4 +47,5 @@ public class WebClientConfig {
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
     }
+
 }

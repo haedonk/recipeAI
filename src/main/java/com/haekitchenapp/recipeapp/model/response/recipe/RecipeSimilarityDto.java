@@ -24,6 +24,7 @@ public class RecipeSimilarityDto {
     private String title;
     private String summary;
     private Double similarity;
+    private Double percentSimilarity;
     private int titleSimilarityRank = 0;
     private int similarityRank = 0;
     private int includesIngredientsCount = 0;
@@ -35,6 +36,7 @@ public class RecipeSimilarityDto {
                 ", title='" + title + '\'' +
                 ", summary='" + summary + '\'' +
                 ", similarity=" + similarity +
+                ", percentSimilarity=" + percentSimilarity +
                 ", similarityRank=" + similarityRank +
                 ", includesIngredientsCount=" + includesIngredientsCount +
                 '}';

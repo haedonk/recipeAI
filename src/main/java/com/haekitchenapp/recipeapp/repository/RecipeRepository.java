@@ -45,14 +45,45 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     Long countByEmbeddingIsNotNull();
 
     @Query(value = """
-    SELECT id, title, summary, (embedding <#> cast(:queryVector as vector)) AS similarity
-    FROM recipes
+    WITH _probes AS (
+      SELECT set_config('ivfflat.probes','10', true)  -- true = SET LOCAL (transaction-scoped)
+    ),
+    cand AS (
+      SELECT r.id, r.title, r.summary,
+             (r.embedding <#> CAST(:queryVector AS vector)) AS dist
+      FROM public.recipes r, _probes
+      ORDER BY r.embedding <#> CAST(:queryVector AS vector)
+      LIMIT 200
+    )
+    SELECT id, title, summary, dist
+    FROM cand
     ORDER BY
-        CASE WHEN lower(title) LIKE lower(:titlePattern) THEN 0 ELSE 1 END,  -- prioritize title matches
-        similarity ASC
+      CASE WHEN lower(title) LIKE lower(:titlePattern) THEN 0 ELSE 1 END,
+      dist
     LIMIT :limit
     """, nativeQuery = true)
-    List<RecipeSimilarityDto> findTopByEmbeddingSimilarity(@Param("queryVector") String queryVector, @Param("limit") int limit, @Param("titlePattern") String titlePattern);
+    List<RecipeSimilarityDto> findTopByEmbeddingSimilarityAndTitle(@Param("queryVector") String queryVector, @Param("limit") int limit, @Param("titlePattern") String titlePattern);
+
+    @Query(value = """
+    WITH _probes AS (
+      SELECT set_config('ivfflat.probes','10', true)  -- true = SET LOCAL (transaction-scoped)
+    ),
+    cand AS (
+      SELECT r.id, r.title, r.summary,
+             (r.embedding <#> CAST(:queryVector AS vector)) AS dist
+      FROM public.recipes r, _probes
+      ORDER BY r.embedding <#> CAST(:queryVector AS vector)
+      LIMIT 200
+    )
+    SELECT id, title, summary, dist
+    FROM cand
+    ORDER BY dist
+    LIMIT :limit
+    """, nativeQuery = true)
+    List<RecipeSimilarityDto> findTopByEmbeddingSimilarity(
+            @Param("queryVector") String queryVector,
+            @Param("limit") int limit
+    );
 
     @Modifying
     @Query(value = "UPDATE recipes SET embedding = cast(:vector AS vector) WHERE id = :id", nativeQuery = true)

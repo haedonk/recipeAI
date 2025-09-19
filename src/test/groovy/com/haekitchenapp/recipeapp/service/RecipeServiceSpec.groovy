@@ -9,6 +9,7 @@ import com.haekitchenapp.recipeapp.model.response.ApiResponse
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSummaryProjection
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto
 import com.haekitchenapp.recipeapp.repository.RecipeIngredientRepository
@@ -132,6 +133,132 @@ class RecipeServiceSpec extends Specification {
         then:
         response.body.message == 'No more duplicate titles found'
         response.body.data == null
+    }
+
+    def "findById maps response without numeric quantities"() {
+        given:
+        def recipe = Fixtures.recipe(id: 55L, title: 'Noodles')
+        def mapped = new RecipeResponse(55L, recipe.createdBy, 'Noodles', recipe.instructions, recipe.summary, null, [] as Set, recipe.prepTime, recipe.cookTime, recipe.servings)
+
+        when:
+        ResponseEntity<ApiResponse<RecipeResponse>> response = recipeService.findById(55L)
+
+        then:
+        1 * recipeRepository.findById(55L) >> Optional.of(recipe)
+        1 * recipeMapper.toRecipeResponse(recipe, false) >> mapped
+        response.body.success
+        response.body.data == mapped
+    }
+
+    def "findByIdNumericQuantity maps response with numeric quantities"() {
+        given:
+        def recipe = Fixtures.recipe(id: 56L, title: 'Soup')
+        def mapped = new RecipeResponse(56L, recipe.createdBy, 'Soup', recipe.instructions, recipe.summary, null, [] as Set, recipe.prepTime, recipe.cookTime, recipe.servings)
+
+        when:
+        ResponseEntity<ApiResponse<RecipeResponse>> response = recipeService.findByIdNumericQuantity(56L)
+
+        then:
+        1 * recipeRepository.findById(56L) >> Optional.of(recipe)
+        1 * recipeMapper.toRecipeResponse(recipe, true) >> mapped
+        response.body.success
+        response.body.data == mapped
+    }
+
+    def "findRecipeByCreatedBy returns recipes when found"() {
+        given:
+        def titles = [Fixtures.recipeTitleDto(11L, 'Bread', 'Bake it')]
+
+        when:
+        ResponseEntity<ApiResponse<List<RecipeTitleDto>>> response = recipeService.findRecipeByCreatedBy(25L)
+
+        then:
+        1 * recipeRepository.findTitlesByCreatedBy(25L) >> titles
+        response.body.success
+        response.body.data == titles
+    }
+
+    def "findRecipeByCreatedBy throws when repository empty"() {
+        when:
+        recipeService.findRecipeByCreatedBy(26L)
+
+        then:
+        1 * recipeRepository.findTitlesByCreatedBy(26L) >> []
+        def ex = thrown(RecipeNotFoundException)
+        ex.message == 'No recipes found for user ID: 26'
+    }
+
+    def "findRecipeById returns recipe when present"() {
+        given:
+        def recipe = Fixtures.recipe(id: 77L, title: 'Stew')
+
+        when:
+        def result = recipeService.findRecipeById(77L)
+
+        then:
+        1 * recipeRepository.findById(77L) >> Optional.of(recipe)
+        result.is(recipe)
+    }
+
+    def "findRecipeById throws when recipe missing"() {
+        when:
+        recipeService.findRecipeById(101L)
+
+        then:
+        1 * recipeRepository.findById(101L) >> Optional.empty()
+        def ex = thrown(RecipeNotFoundException)
+        ex.message == 'Recipe not found with ID: 101'
+    }
+
+    def "findRecipeById throws when id null"() {
+        when:
+        recipeService.findRecipeById(null)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == 'Recipe ID must not be null'
+        0 * recipeRepository.findById(_)
+    }
+
+    def "findRecipeTitleDtoById returns dto when present"() {
+        given:
+        def dto = Fixtures.recipeTitleDto(88L, 'Pie', 'Bake pie')
+
+        when:
+        def result = recipeService.findRecipeTitleDtoById(88L)
+
+        then:
+        1 * recipeRepository.findRecipeTitleDtoById(88L) >> Optional.of(dto)
+        result.is(dto)
+    }
+
+    def "findRecipeTitleDtoById throws when dto missing"() {
+        when:
+        recipeService.findRecipeTitleDtoById(89L)
+
+        then:
+        1 * recipeRepository.findRecipeTitleDtoById(89L) >> Optional.empty()
+        def ex = thrown(RecipeNotFoundException)
+        ex.message == 'Recipe title dto not found with ID: 89'
+    }
+
+    def "findRecipeTitleDtoById throws when id null"() {
+        when:
+        recipeService.findRecipeTitleDtoById(null)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == 'Recipe ID must not be null'
+        0 * recipeRepository.findRecipeTitleDtoById(_)
+    }
+
+    def "deleteById delegates to repository and returns success"() {
+        when:
+        ResponseEntity<ApiResponse<Object>> response = recipeService.deleteById(61L)
+
+        then:
+        1 * recipeRepository.deleteById(61L)
+        response.body.message == 'Recipe deleted successfully'
     }
 
     def "getRecipeDetails aggregates futures when recipe exists"() {

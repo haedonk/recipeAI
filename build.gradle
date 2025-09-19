@@ -1,7 +1,8 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.4.3'
-	id 'io.spring.dependency-management' version '1.1.7'
+        id 'java'
+        id 'groovy'
+        id 'org.springframework.boot' version '3.4.3'
+        id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.recipe'
@@ -18,45 +19,58 @@ repositories {
 }
 
 dependencies {
-	// Spring Boot
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-mail'
-	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+        // Spring Boot
+        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+        implementation 'org.springframework.boot:spring-boot-starter-security'
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-mail'
+        implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
-	// Validation
-	implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
-	implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
+        // Validation
+        implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+        implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
 
-	// JWT
-	implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+        // JWT
+        implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+        runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
+        runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
 
-	// Database
-	implementation 'org.postgresql:postgresql:42.7.2'
+        // Database
+        implementation 'org.postgresql:postgresql:42.7.2'
 
-	// Lombok
-	compileOnly 'org.projectlombok:lombok:1.18.28'
-	annotationProcessor 'org.projectlombok:lombok:1.18.28'
+        // Lombok
+        compileOnly 'org.projectlombok:lombok:1.18.28'
+        annotationProcessor 'org.projectlombok:lombok:1.18.28'
 
-	// MapStruct
-	implementation 'org.mapstruct:mapstruct:1.5.5.Final'
-	annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+        // MapStruct
+        implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+        annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 
-	// Spring Batch
-	implementation 'org.springframework.boot:spring-boot-starter-batch:3.4.3'
-	implementation 'org.springframework.batch:spring-batch-core:5.0.3'
+        // Spring Batch
+        implementation 'org.springframework.boot:spring-boot-starter-batch:3.4.3'
+        implementation 'org.springframework.batch:spring-batch-core:5.0.3'
 
 
-	implementation("com.openai:openai-java-spring-boot-starter:3.4.1")
+        implementation("com.openai:openai-java-spring-boot-starter:3.4.1")
 
-	// Dev
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+        // Dev
+        developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
-	// Testing
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        // Testing
+        testImplementation('org.springframework.boot:spring-boot-starter-test') {
+                exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+        }
+        testImplementation 'org.springframework.security:spring-security-test'
+        testImplementation 'org.spockframework:spock-core:2.3-groovy-4.0'
+        testImplementation 'org.spockframework:spock-spring:2.3-groovy-4.0'
+        testImplementation 'org.apache.groovy:groovy-json:4.0.21'
+        testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
+        testImplementation 'org.testcontainers:postgresql:1.19.7'
+        testImplementation 'org.assertj:assertj-core:3.26.3'
+        testImplementation 'org.wiremock:wiremock-standalone:3.9.0'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(Test).configureEach {
+        useJUnitPlatform()
 }

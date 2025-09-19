@@ -13,6 +13,7 @@ import com.haekitchenapp.recipeapp.service.RecipeAIService;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import com.haekitchenapp.recipeapp.service.UnitService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,16 +27,14 @@ import java.util.concurrent.ExecutionException;
 @Validated
 @RequestMapping("/api/recipes")
 @Slf4j
+@RequiredArgsConstructor
 public class RecipeController {
 
-    @Autowired
-    private RecipeService recipeService;
+    private final RecipeService recipeService;
 
-    @Autowired
-    private UnitService unitService;
+    private final UnitService unitService;
 
-    @Autowired
-    RecipeAIService recipeAIService;
+    private final RecipeAIService recipeAIService;
 
     // Create endpoints
     @PostMapping

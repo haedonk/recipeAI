@@ -305,6 +305,43 @@ class RecipeServiceSpec extends Specification {
         ex.message.contains('boom')
     }
 
+    def "create nulls request id and delegates to createRecipe with default flag"() {
+        given:
+        RecipeRequest request = Fixtures.recipeRequest(id: 99L)
+        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+        def saved = Fixtures.recipe(id: 1L)
+
+        when:
+        ResponseEntity<ApiResponse<Recipe>> response = service.create(request)
+
+        then:
+        request.id == null
+        1 * service.createRecipe({ RecipeRequest delegated ->
+            delegated.is(request) && delegated.id == null && !delegated.aiGenerated
+        }, false) >> saved
+        response.body.success
+        response.body.data.is(saved)
+    }
+
+    def "createRecipe forces aiGenerated true and saves mapped entity"() {
+        given:
+        RecipeRequest request = Fixtures.recipeRequest(id: 55L, aiGenerated: false)
+        Recipe mapped = Fixtures.recipe(id: 77L, aiGenerated: true)
+        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+
+        when:
+        Recipe result = service.createRecipe(request, true)
+
+        then:
+        request.id == null
+        request.aiGenerated
+        1 * recipeMapper.toEntity({ RecipeRequest mappedRequest ->
+            mappedRequest.is(request) && mappedRequest.id == null && mappedRequest.aiGenerated
+        }) >> mapped
+        1 * service.saveRecipe(mapped) >> mapped
+        result.is(mapped)
+    }
+
     def "createBulk saves every mapped recipe"() {
         given:
         RecipeRequest first = Fixtures.recipeRequest(title: 'One')
@@ -400,6 +437,62 @@ class RecipeServiceSpec extends Specification {
 
         then:
         1 * recipeRepository.updateEmbedding(12L, request.getEmbedString())
+    }
+
+    def "updateEmbeddingOnly wraps response and delegates once"() {
+        given:
+        def request = new EmbedUpdateRequest()
+        request.setId(33L)
+        request.setEmbedding([0.3d] as Double[])
+        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+
+        when:
+        ResponseEntity<ApiResponse<Object>> response = service.updateEmbeddingOnly(request)
+
+        then:
+        response.body.success
+        response.body.message == 'Recipe embedding updated successfully'
+        1 * service.updateEmbedColumn(request) >> { }
+    }
+
+    def "updateEmbedColumn throws when request is null"() {
+        when:
+        recipeService.updateEmbedColumn(null)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == 'Recipe must not be null for update'
+        0 * recipeRepository._
+    }
+
+    def "updateEmbedColumn throws when embedding empty"() {
+        given:
+        def request = new EmbedUpdateRequest()
+        request.setId(44L)
+        request.setEmbedding(new Double[0])
+
+        when:
+        recipeService.updateEmbedColumn(request)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == 'Embedding must not be null or empty'
+        0 * recipeRepository._
+    }
+
+    def "updateEmbedColumn wraps data integrity violation"() {
+        given:
+        def request = new EmbedUpdateRequest()
+        request.setId(55L)
+        request.setEmbedding([0.9d] as Double[])
+        recipeRepository.updateEmbedding(55L, request.getEmbedString()) >> { throw new DataIntegrityViolationException('bad embed') }
+
+        when:
+        recipeService.updateEmbedColumn(request)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == 'Invalid embedding data'
     }
 
     def "deleteRecipesByIds returns early when ids empty"() {

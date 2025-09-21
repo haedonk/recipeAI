@@ -1,14 +1,10 @@
 package com.haekitchenapp.recipeapp.controller;
 
 import com.haekitchenapp.recipeapp.entity.Cuisine;
-import com.haekitchenapp.recipeapp.entity.MealType;
-import com.haekitchenapp.recipeapp.entity.Recipe;
-import com.haekitchenapp.recipeapp.entity.RecipeMeal;
 import com.haekitchenapp.recipeapp.exception.CuisineNotFoundException;
 import com.haekitchenapp.recipeapp.service.CuisineService;
 import com.haekitchenapp.recipeapp.service.RecipeCuisineService;
 import com.haekitchenapp.recipeapp.service.RecipeMealService;
-import com.haekitchenapp.recipeapp.service.RecipeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

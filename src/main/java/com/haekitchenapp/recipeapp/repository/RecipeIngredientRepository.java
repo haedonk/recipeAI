@@ -1,7 +1,6 @@
 package com.haekitchenapp.recipeapp.repository;
 
 import com.haekitchenapp.recipeapp.entity.RecipeIngredient;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeIngredientProjection;
 import lombok.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

@@ -3,13 +3,13 @@ package com.haekitchenapp.recipeapp.controller;
 import com.haekitchenapp.recipeapp.model.request.recipe.BulkRecipePlanRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipePlanResponse;
+import com.haekitchenapp.recipeapp.service.JwtTokenService;
 import com.haekitchenapp.recipeapp.service.RecipePlanService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,63 +24,51 @@ import java.util.List;
 public class RecipePlanController {
 
     private final RecipePlanService recipePlanService;
-
+    private final JwtTokenService jwtTokenService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<RecipePlanResponse>>> getUserRecipePlans(
             @RequestParam String startDate,
-            @RequestParam String endDate
+            @RequestParam String endDate,
+            HttpServletRequest request
     ) {
-        // Get the user ID from the security context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userName = authentication.getName();
-
-        log.info("Received request to get recipe plans for user name: {}", userName);
-
-        return recipePlanService.getPlansInDateRange(userName, startDate, endDate);
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
+        log.info("Received request to get recipe plans for user ID: {}", userId);
+        return recipePlanService.getPlansInDateRange(userId, startDate, endDate);
     }
 
     @PostMapping("/bulk")
     public ResponseEntity<ApiResponse<List<RecipePlanResponse>>> createBulkRecipePlans(
-            @Valid @RequestBody List<BulkRecipePlanRequest> bulkRequests) {
+            @Valid @RequestBody List<BulkRecipePlanRequest> bulkRequests,
+            HttpServletRequest request) {
 
-        // Get the user ID from the security context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userName = authentication.getName();
-
-        log.info("Received request to create {} recipe plans in bulk for user name: {}",
-                bulkRequests.size(), userName);
-
-        return recipePlanService.createBulkRecipePlans(userName, bulkRequests);
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
+        log.info("Received request to create {} recipe plans in bulk for user ID: {}",
+                bulkRequests.size(), userId);
+        return recipePlanService.createBulkRecipePlans(userId, bulkRequests);
     }
 
     @DeleteMapping("/bulk")
     public ResponseEntity<ApiResponse<Void>> deleteBulkRecipePlans(
-            @RequestBody List<Long> planIds) {
+            @RequestBody List<Long> planIds,
+            HttpServletRequest request) {
 
-        // Get the user ID from the security context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userName = authentication.getName();
-
-        log.info("Received request to delete {} recipe plans in bulk for user name: {}",
-                planIds.size(), userName);
-
-        return recipePlanService.deleteBulkRecipePlans(userName, planIds);
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
+        log.info("Received request to delete {} recipe plans in bulk for user ID: {}",
+                planIds.size(), userId);
+        return recipePlanService.deleteBulkRecipePlans(userId, planIds);
     }
 
     @PatchMapping("/bulk/toggle-saved")
     public ResponseEntity<ApiResponse<String>> toggleSavedStatusBulk(
             @RequestParam String startDate,
             @RequestParam String endDate,
-            @RequestParam Boolean saved) {
+            @RequestParam Boolean saved,
+            HttpServletRequest request) {
 
-        // Get the user ID from the security context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userName = authentication.getName();
-
-        log.info("Received request to toggle saved status for recipe plans from {} to {} for user name: {}",
-                startDate, endDate, userName);
-
-        return recipePlanService.toggleSavedStatusBulk(userName, startDate, endDate, saved);
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
+        log.info("Received request to toggle saved status for recipe plans from {} to {} for user ID: {}",
+                startDate, endDate, userId);
+        return recipePlanService.toggleSavedStatusBulk(userId, startDate, endDate, saved);
     }
 }

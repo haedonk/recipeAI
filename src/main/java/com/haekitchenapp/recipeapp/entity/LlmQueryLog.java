@@ -2,9 +2,7 @@ package com.haekitchenapp.recipeapp.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 
@@ -14,16 +12,24 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class LlmQueryLog {
 
-    public LlmQueryLog(String id, String model, String prompt, String response, int totalTokens,
-                        int promptTokens, int responseTokens, int reasoningTokens, Long recipeId) {
+    public LlmQueryLog(String id, String model, String userPrompt, String systemPrompt, String response, int totalTokens, int responseTokens, int promptTokens, Integer reasoningTokens, Double inputCost, Double outputCost, Double totalCost) {
         this.id = id;
         this.model = model;
-        this.prompt = prompt;
+        this.userPrompt = userPrompt;
+        this.systemPrompt = systemPrompt;
         this.response = response;
         this.totalTokens = totalTokens;
-        this.promptTokens = promptTokens;
         this.responseTokens = responseTokens;
+        this.promptTokens = promptTokens;
         this.reasoningTokens = reasoningTokens;
+        this.inputCost = inputCost;
+        this.outputCost = outputCost;
+        this.totalCost = totalCost;
+    }
+
+
+    public LlmQueryLog(String id, String model, String userPrompt, String systemPrompt, String llmResponse, int i, int i1, int i2, int i3, double v, double v1, double v2, Long recipeId) {
+        this(id, model, userPrompt, systemPrompt, llmResponse, i, i1, i2, i3, v, v1, v2);
         this.recipeId = recipeId;
     }
 
@@ -38,7 +44,10 @@ public class LlmQueryLog {
     private String model;
 
     @Column(columnDefinition = "TEXT", nullable = false)
-    private String prompt;
+    private String userPrompt;
+
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String systemPrompt;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String response;
@@ -66,6 +75,7 @@ public class LlmQueryLog {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
 
     @PrePersist
     protected void onCreate() {

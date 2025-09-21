@@ -1,4 +1,6 @@
 spring:
+  application:
+    name: recipe-api
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}
@@ -14,7 +16,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -61,13 +62,6 @@ spring:
       read-timeout-seconds: 60
       write-timeout-seconds: 60
 
-  batch:
-    job:
-      enabled: false
-      initialize-schema: never
-    settings:
-      chunk-size: ${BATCH_CHUNK_SIZE:10}
-
 # Rate limiter configuration
 rate-limiter:
   max-per-minute: 30
@@ -84,10 +78,14 @@ openai:
 #remove later
 logging:
   level:
-    org.hibernate.SQL: WARN
-    org.hibernate.orm.sql.ast: WARN
-    org.hibernate.orm.results.graph: WARN
-    org.hibernate.internal.AbstractSharedSessionContract: ERROR
-    com.zaxxer.hikari: DEBUG                # Hikari pool general logging
-    com.zaxxer.hikari.HikariConfig: DEBUG   # Hikari configuration details
-    com.zaxxer.hikari.pool.HikariPool: DEBUG
+    org.hibernate.SQL: INFO
+    com.zaxxer.hikari: INFO
+  config: classpath:logback-spring.xml
+  loki:
+    url: ${GRAFANA_LOKI_URL}
+    username: ${GRAFANA_LOKI_USER}
+    password: ${GRAFANA_LOKI_TOKEN}
+server:
+  port: ${PORT:8081}
+app:
+  env: default

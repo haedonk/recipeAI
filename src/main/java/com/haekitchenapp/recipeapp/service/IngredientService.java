@@ -1,29 +1,25 @@
 package com.haekitchenapp.recipeapp.service;
 
 import com.haekitchenapp.recipeapp.entity.Ingredient;
-import com.haekitchenapp.recipeapp.entity.Unit;
 import com.haekitchenapp.recipeapp.exception.IngredientException;
-import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.repository.IngredientRepository;
-import com.haekitchenapp.recipeapp.repository.UnitRepository;
-import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class IngredientService {
 
-    @Autowired
-    private IngredientRepository ingredientRepository;
+    private final IngredientRepository ingredientRepository;
 
     private Map<Long, Ingredient> ingredientCache = new ConcurrentHashMap<>();
     private Map<String, Ingredient> ingredientNameCache = new ConcurrentHashMap<>();
@@ -34,7 +30,7 @@ public class IngredientService {
     @EventListener(ApplicationReadyEvent.class)
     private void initializeCache() {
         loadCache(0);
-        System.out.println("Ingredient cache initialized with " + countOnLoad + " ingredients.");
+        log.info("Ingredient cache initialized with {} ingredients.", countOnLoad);
     }
 
     private void loadCache(long startingId) {

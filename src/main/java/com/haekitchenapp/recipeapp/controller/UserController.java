@@ -1,30 +1,28 @@
 package com.haekitchenapp.recipeapp.controller;
 
-import com.haekitchenapp.recipeapp.exception.InvalidCredentialsException;
-import com.haekitchenapp.recipeapp.exception.UserNotFoundException;
 import com.haekitchenapp.recipeapp.model.request.email.VerifyEmailRequestDto;
-import com.haekitchenapp.recipeapp.model.request.user.LoginRequestDto;
-import com.haekitchenapp.recipeapp.model.request.user.UserRequestDto;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
-import com.haekitchenapp.recipeapp.model.response.user.LoginResponseDto;
-import com.haekitchenapp.recipeapp.model.response.user.UserResponseDto;
+import com.haekitchenapp.recipeapp.service.JwtTokenService;
 import com.haekitchenapp.recipeapp.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
 @Slf4j
+@RequiredArgsConstructor
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+    private final JwtTokenService jwtTokenService;
 
-    @GetMapping("/isVerified/{userId}")
-    public ResponseEntity<ApiResponse<Boolean>> isEmailVerified(@PathVariable Long userId) {
+    @GetMapping("/isVerified")
+    public ResponseEntity<ApiResponse<Boolean>> isEmailVerified(HttpServletRequest request) {
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
         log.info("Received request to check if email is verified for user ID: {}", userId);
         return userService.isUserEmailVerified(userId);
     }
@@ -35,11 +33,10 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Email verified successfully"));
     }
 
-    @PostMapping("/resend-verification/{userId}")
-    public ResponseEntity<ApiResponse<Object>> resendVerificationEmail(@PathVariable Long userId) {
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<Object>> resendVerificationEmail(HttpServletRequest request) {
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
         log.info("Received request to resend verification email for user ID: {}", userId);
         return userService.resendVerificationEmail(userId);
     }
-
-
 }

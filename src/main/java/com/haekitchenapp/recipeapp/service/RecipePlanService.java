@@ -5,7 +5,6 @@ import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.entity.RecipePlan;
 import com.haekitchenapp.recipeapp.entity.User;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
-import com.haekitchenapp.recipeapp.exception.UserNotFoundException;
 import com.haekitchenapp.recipeapp.model.request.recipe.BulkRecipePlanRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.RecipePlanSimple;
@@ -13,7 +12,6 @@ import com.haekitchenapp.recipeapp.model.response.recipe.RecipePlanResponse;
 import com.haekitchenapp.recipeapp.repository.MealTypeRepository;
 import com.haekitchenapp.recipeapp.repository.RecipePlanRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
-import com.haekitchenapp.recipeapp.repository.UserRepository;
 import com.haekitchenapp.recipeapp.utility.RecipePlanMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +30,6 @@ import java.util.Optional;
 public class RecipePlanService {
 
     private final RecipePlanRepository recipePlanRepository;
-    private final UserService userService;
     private final RecipeRepository recipeRepository;
     private final MealTypeRepository mealTypeRepository;
     private final RecipePlanMapper recipePlanMapper;
@@ -107,8 +104,6 @@ public class RecipePlanService {
     public RecipePlan createRecipePlanWithRecipe(
             Long userId, Long recipeId, Short mealTypeId, LocalDate planDate, String notes) {
 
-        User user = userService.getUserById(userId);
-
         Recipe recipe = recipeRepository.findById(recipeId)
                 .orElseThrow(() -> new IllegalArgumentException("Recipe not found with id: " + recipeId));
 
@@ -116,6 +111,9 @@ public class RecipePlanService {
                 .orElseThrow(() -> new IllegalArgumentException("Meal type not found with id: " + mealTypeId));
 
         RecipePlan recipePlan = new RecipePlan();
+        // Create a User reference with just the ID (JPA will manage the relationship)
+        User user = new User();
+        user.setId(userId);
         recipePlan.setUser(user);
         recipePlan.setRecipe(recipe);
         recipePlan.setMealType(mealType);
@@ -140,12 +138,13 @@ public class RecipePlanService {
     public RecipePlan createCustomRecipePlan(
             Long userId, String customTitle, Short mealTypeId, LocalDate planDate, String notes) {
 
-        User user = userService.getUserById(userId);
-
         MealType mealType = mealTypeRepository.findById(mealTypeId)
                 .orElseThrow(() -> new IllegalArgumentException("Meal type not found with id: " + mealTypeId));
 
         RecipePlan recipePlan = new RecipePlan();
+        // Create a User reference with just the ID (JPA will manage the relationship)
+        User user = new User();
+        user.setId(userId);
         recipePlan.setUser(user);
         recipePlan.setCustomTitle(customTitle);
         recipePlan.setMealType(mealType);
@@ -223,15 +222,14 @@ public class RecipePlanService {
     }
 
 
-    public ResponseEntity<ApiResponse<List<RecipePlanResponse>>> getPlansInDateRange(String userName, String startDate, String endDate) {
+    public ResponseEntity<ApiResponse<List<RecipePlanResponse>>> getPlansInDateRange(Long userId, String startDate, String endDate) {
         LocalDate start = LocalDate.parse(startDate);
         LocalDate end = LocalDate.parse(endDate);
-        User user = userService.getUserByUsername(userName);
 
-        log.info("User found: {} with ID: {}", userName, user.getId());
-        List<RecipePlanSimple> recipePlans = findByUserIdAndDateRange(user.getId(), start, end);
+        log.info("Getting recipe plans for user ID: {} between {} and {}", userId, start, end);
+        List<RecipePlanSimple> recipePlans = findByUserIdAndDateRange(userId, start, end);
         if(recipePlans.isEmpty()) {
-            log.info("No recipe plans found for user ID: {} between {} and {}", user.getId(), start, end);
+            log.info("No recipe plans found for user ID: {} between {} and {}", userId, start, end);
             throw new RecipeNotFoundException("No recipe plans found in the specified date range.");
         }
         List<RecipePlanResponse> responseData = recipePlanMapper.toResponseSimple(recipePlans);
@@ -240,62 +238,54 @@ public class RecipePlanService {
         return ResponseEntity.ok(response);
     }
 
-
     @Transactional
-    public ResponseEntity<ApiResponse<List<RecipePlanResponse>>> createBulkRecipePlans(String userName, List<BulkRecipePlanRequest> bulkPlanRequests) {
-        User user = userService.getUserByUsername(userName);
-
+    public ResponseEntity<ApiResponse<List<RecipePlanResponse>>> createBulkRecipePlans(Long userId, List<BulkRecipePlanRequest> bulkPlanRequests) {
         bulkPlanRequests.stream().map(BulkRecipePlanRequest::getRecipeId).filter(Objects::nonNull).forEach(recipeId -> {
             if (!recipeRepository.existsById(recipeId)) {
                 throw new RecipeNotFoundException("Recipe not found with id: " + recipeId);
             }
         });
 
-        log.info("User found: {} with ID: {}", userName, user.getId());
-        log.info("Creating {} recipe plans in bulk for user ID: {}", bulkPlanRequests.size(), user.getId());
+        log.info("Creating {} recipe plans in bulk for user ID: {}", bulkPlanRequests.size(), userId);
 
-        List<RecipePlan> mappedPlans = recipePlanMapper.toEntity(bulkPlanRequests, user);
+        List<RecipePlan> mappedPlans = recipePlanMapper.toEntity(bulkPlanRequests, userId);
 
         List<RecipePlan> recipePlans = recipePlanRepository.saveAll(mappedPlans);
-        log.info("Successfully created {} recipe plans for user ID: {}", recipePlans.size(), user.getId());
+        log.info("Successfully created {} recipe plans for user ID: {}", recipePlans.size(), userId);
         return ResponseEntity.ok(ApiResponse.success("Recipe plans created successfully", recipePlanMapper.toResponse(recipePlans)));
     }
 
     /**
      * Delete multiple recipe plans in bulk
      *
-     * @param userName The username of the authenticated user
+     * @param userId The ID of the authenticated user
      * @param planIds List of recipe plan IDs to delete
      * @return Response entity with success/failure status
      */
     @Transactional
-    public ResponseEntity<ApiResponse<Void>> deleteBulkRecipePlans(String userName, List<Long> planIds) {
-        User user = userService.getUserByUsername(userName);
-
-        log.info("User found: {} with ID: {}", userName, user.getId());
-        log.info("Attempting to delete {} recipe plans in bulk for user ID: {}", planIds.size(), user.getId());
+    public ResponseEntity<ApiResponse<Void>> deleteBulkRecipePlans(Long userId, List<Long> planIds) {
+        log.info("Attempting to delete {} recipe plans in bulk for user ID: {}", planIds.size(), userId);
 
         // Delete plans that match both the plan IDs and the user ID
-        recipePlanRepository.deleteByIdInAndUserId(planIds, user.getId());
-        log.info("Successfully deleted recipe plans for user ID: {}", user.getId());
+        recipePlanRepository.deleteByIdInAndUserId(planIds, userId);
+        log.info("Successfully deleted recipe plans for user ID: {}", userId);
 
         return ResponseEntity.ok(ApiResponse.success("Recipe plans deleted successfully"));
     }
 
 
     @Transactional
-    public ResponseEntity<ApiResponse<String>> toggleSavedStatusBulk(String userName, String startDate, String endDate, Boolean saved) {
+    public ResponseEntity<ApiResponse<String>> toggleSavedStatusBulk(Long userId, String startDate, String endDate, Boolean saved) {
         LocalDate start = LocalDate.parse(startDate);
         LocalDate end = LocalDate.parse(endDate);
-        User user = userService.getUserByUsername(userName);
-        log.info("User found: {} with ID: {}", userName, user.getId());
-        List<RecipePlanSimple> recipePlans = findByUserIdAndDateRange(user.getId(), start, end);
+
+        log.info("Toggling saved status for user ID: {} between {} and {}", userId, start, end);
+        List<RecipePlanSimple> recipePlans = findByUserIdAndDateRange(userId, start, end);
         if(recipePlans.isEmpty()) {
-            log.info("No recipe plans found for user ID: {} between {} and {}", user.getId(), start, end);
+            log.info("No recipe plans found for user ID: {} between {} and {}", userId, start, end);
             throw new RecipeNotFoundException("No recipe plans found in the specified date range.");
         }
-        recipePlanRepository.updateSavedStatusBetweenDates(user.getId(), start, end, saved);
+        recipePlanRepository.updateSavedStatusBetweenDates(userId, start, end, saved);
         return ResponseEntity.ok(ApiResponse.success("Recipe plans updated successfully"));
     }
 }
-

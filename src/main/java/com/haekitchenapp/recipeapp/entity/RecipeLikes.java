@@ -2,7 +2,6 @@ package com.haekitchenapp.recipeapp.entity;
 
 import com.haekitchenapp.recipeapp.entity.composite.RecipeLikesId;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 

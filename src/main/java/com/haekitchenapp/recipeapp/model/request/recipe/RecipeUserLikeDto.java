@@ -6,10 +6,6 @@ import lombok.Data;
 
 @Data
 public class RecipeUserLikeDto {
-    @JsonProperty("user_id")
-    @NotNull
-    private Long userId;
-
     @JsonProperty("recipe_id")
     @NotNull
     private Long recipeId;

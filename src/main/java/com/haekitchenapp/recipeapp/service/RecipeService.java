@@ -1,13 +1,11 @@
 package com.haekitchenapp.recipeapp.service;
 
 import com.haekitchenapp.recipeapp.entity.Recipe;
-import com.haekitchenapp.recipeapp.exception.EmbedFailureException;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.recipe.EmbedUpdateRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
-import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
-import com.haekitchenapp.recipeapp.model.response.*;
+import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.repository.RecipeIngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
@@ -15,7 +13,6 @@ import com.haekitchenapp.recipeapp.utility.RecipeMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,10 +21,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j

@@ -5,17 +5,18 @@ import com.haekitchenapp.recipeapp.entity.Unit;
 import com.haekitchenapp.recipeapp.exception.RecipeNotFoundException;
 import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.recipe.EmbedUpdateRequest;
-import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest;
-import com.haekitchenapp.recipeapp.model.response.*;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
-import com.haekitchenapp.recipeapp.model.response.recipe.*;
+import com.haekitchenapp.recipeapp.model.response.ApiResponse;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.service.RecipeAIService;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import com.haekitchenapp.recipeapp.service.UnitService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -33,9 +34,6 @@ public class RecipeController {
     private final RecipeService recipeService;
 
     private final UnitService unitService;
-
-    private final RecipeAIService recipeAIService;
-
     // Create endpoints
     @PostMapping
     public ResponseEntity<ApiResponse<Recipe>> createRecipe(@RequestBody @Valid RecipeRequest recipeRequest) {

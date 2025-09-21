@@ -5,12 +5,12 @@ import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitle
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSimilarityDto;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSummaryProjection;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.domain.Page;
 
 import java.util.List;
 import java.util.Optional;

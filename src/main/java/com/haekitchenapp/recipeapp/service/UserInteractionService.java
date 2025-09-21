@@ -1,12 +1,11 @@
 package com.haekitchenapp.recipeapp.service;
 
-import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.entity.RecipeLikes;
 import com.haekitchenapp.recipeapp.entity.composite.RecipeLikesId;
-import com.haekitchenapp.recipeapp.exception.UserNotFoundException;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.repository.RecipeLikesRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,19 +16,14 @@ import java.util.Objects;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class UserInteractionService {
 
-    @Autowired
-    private RecipeLikesRepository recipeLikesRepository;
+    private final RecipeLikesRepository recipeLikesRepository;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private RecipeService recipeService;
+    private final RecipeService recipeService;
 
     public ResponseEntity<ApiResponse<Boolean>> toggleRecipeLike(Long recipeId, Long userId) {
-        userService.getUserById(userId);
         recipeService.findById(recipeId);
 
         log.info("Toggling like for recipe with ID {} by user with ID {}", recipeId, userId);
@@ -51,7 +45,6 @@ public class UserInteractionService {
 
     public ResponseEntity<ApiResponse<List<RecipeLikes>>> getRecipeLikesByUserId(Long userId) {
         log.info("Fetching recipe likes for user with ID {}", userId);
-        userService.getUserById(userId);
         return ResponseEntity.ok(ApiResponse.success("Recipe likes fetched successfully", recipeLikesRepository.findByIdUserId(userId)));
     }
 
@@ -63,7 +56,6 @@ public class UserInteractionService {
 
     public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> getRecipeTitleDtosByUserId(Long userId) {
         log.info("Fetching recipes for user with ID {}", userId);
-        userService.getUserById(userId);
         List<RecipeLikes> recipeLikesList = recipeLikesRepository.findByIdUserId(userId);
 
         if (recipeLikesList.isEmpty()) {

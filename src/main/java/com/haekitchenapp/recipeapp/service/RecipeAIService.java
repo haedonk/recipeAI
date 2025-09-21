@@ -8,7 +8,6 @@ import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +26,6 @@ public class RecipeAIService {
     private final RecipeService recipeService;
     private final TogetherAiApi togetherAiApi;
     private final OpenAiApi openAiApi;
-    private final UserService userService;
 
 
     public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> generateRandomRecipeTitles(Integer numberOfTitles) {
@@ -61,9 +59,8 @@ public class RecipeAIService {
         return titles;
     }
 
-    public ResponseEntity<ApiResponse<Long>> recipeChat(String query, String userName) throws JsonProcessingException {
-        Long userId = userService.getUserByUsername(userName).getId();
-        log.info("Recipe chat request - User: {}", query);
+    public ResponseEntity<ApiResponse<Long>> recipeChat(String query, Long userId) throws JsonProcessingException {
+        log.info("Recipe chat request - User ID: {}, Query: {}", userId, query);
         RecipeAISkeleton response = openAiApi.buildRecipe(query);
         log.info("Simple chat response: {}", response);
         Long recipeId = recipeService.createRecipe(response.toRecipeRequest(userId, null), true).getId();
@@ -71,9 +68,8 @@ public class RecipeAIService {
         return ResponseEntity.ok(ApiResponse.success("Recipe created successfully", recipeId));
     }
 
-    public ResponseEntity<ApiResponse<Long>> recipeCleanUp(RecipeAISkeletonId query, String userName) throws JsonProcessingException {
-        Long userId = userService.getUserByUsername(userName).getId();
-        log.info("Recipe clean up request - User: {}, Recipe ID to clean: {}", query, query.getId());
+    public ResponseEntity<ApiResponse<Long>> recipeCleanUp(RecipeAISkeletonId query, Long userId) throws JsonProcessingException {
+        log.info("Recipe clean up request - User ID: {}, Recipe ID to clean: {}", userId, query.getId());
         RecipeAISkeleton response = openAiApi.correctRecipe(query, query.getUserPrompt());
         log.info("Clean up chat response: {}", response);
         Long recipeId = recipeService.createRecipe(response.toRecipeRequest(userId, query.getId()), true).getId();

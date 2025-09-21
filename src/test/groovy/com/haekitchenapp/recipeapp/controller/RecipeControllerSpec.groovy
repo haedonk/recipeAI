@@ -5,7 +5,6 @@ import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest
 import com.haekitchenapp.recipeapp.model.response.ApiResponse
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto
-import com.haekitchenapp.recipeapp.service.RecipeAIService
 import com.haekitchenapp.recipeapp.service.RecipeService
 import com.haekitchenapp.recipeapp.service.UnitService
 import com.haekitchenapp.recipeapp.support.Fixtures
@@ -17,13 +16,11 @@ class RecipeControllerSpec extends Specification {
     RecipeController recipeController
     RecipeService recipeService
     UnitService unitService
-    RecipeAIService recipeAIService
 
     def setup() {
         recipeService = Mock(RecipeService)
         unitService = Mock(UnitService)
-        recipeAIService = Mock(RecipeAIService)
-        recipeController = new RecipeController(recipeService, unitService, recipeAIService)
+        recipeController = new RecipeController(recipeService, unitService)
     }
 
     def "creates recipe when payload is valid"() {

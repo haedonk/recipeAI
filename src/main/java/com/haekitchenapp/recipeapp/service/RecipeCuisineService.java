@@ -1,6 +1,5 @@
 package com.haekitchenapp.recipeapp.service;
 
-import com.haekitchenapp.recipeapp.entity.Cuisine;
 import com.haekitchenapp.recipeapp.entity.composite.RecipeCuisine;
 
 import java.util.List;

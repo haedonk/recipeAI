@@ -9,7 +9,6 @@ import com.haekitchenapp.recipeapp.model.response.ApiResponse
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSummaryProjection
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto
 import com.haekitchenapp.recipeapp.repository.RecipeIngredientRepository
 import com.haekitchenapp.recipeapp.repository.RecipeRepository
@@ -17,7 +16,6 @@ import com.haekitchenapp.recipeapp.support.Fixtures
 import com.haekitchenapp.recipeapp.utility.RecipeMapper
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.Page
-import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.ResponseEntity
 import spock.lang.Specification

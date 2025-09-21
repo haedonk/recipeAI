@@ -1,15 +1,13 @@
 package com.haekitchenapp.recipeapp.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.model.request.openAi.RecipeAiRequest;
 import com.haekitchenapp.recipeapp.model.request.togetherAi.RoleContent;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeAISkeleton;
-import com.haekitchenapp.recipeapp.model.response.togetherAi.LlmResponse;
 import com.haekitchenapp.recipeapp.service.OpenAiApi;
 import com.openai.models.chat.completions.ChatCompletion;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,10 +17,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/openai")
 @Slf4j
+@RequiredArgsConstructor
 public class OpenAiController {
 
-    @Autowired
-    private OpenAiApi openAiApi;
+    private final OpenAiApi openAiApi;
 
     @PostMapping("/chat/simple")
     public ResponseEntity<ChatCompletion> simpleChat(@RequestBody Map<String, String> request) {

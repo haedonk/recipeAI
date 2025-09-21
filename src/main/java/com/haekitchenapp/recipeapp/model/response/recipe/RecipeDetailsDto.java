@@ -1,6 +1,5 @@
 package com.haekitchenapp.recipeapp.model.response.recipe;
 
-import com.haekitchenapp.recipeapp.entity.Recipe;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

@@ -4,28 +4,20 @@ import com.haekitchenapp.recipeapp.entity.LlmModelPrice;
 import com.haekitchenapp.recipeapp.entity.LlmQueryLog;
 import com.haekitchenapp.recipeapp.repository.LlmModelPriceRepository;
 import com.haekitchenapp.recipeapp.repository.LlmQueryLogRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class LlmPricingService {
-
-    private static final Logger logger = LoggerFactory.getLogger(LlmPricingService.class);
 
     private final LlmModelPriceRepository modelPriceRepository;
     private final LlmQueryLogRepository queryLogRepository;
-
-    @Autowired
-    public LlmPricingService(LlmModelPriceRepository modelPriceRepository, LlmQueryLogRepository queryLogRepository) {
-        this.modelPriceRepository = modelPriceRepository;
-        this.queryLogRepository = queryLogRepository;
-    }
 
     /**
      * Calculates the cost for a given LLM query log and updates the record in the database
@@ -39,7 +31,7 @@ public class LlmPricingService {
         Optional<LlmQueryLog> optionalQueryLog = queryLogRepository.findById(queryLogId);
 
         if (optionalQueryLog.isEmpty()) {
-            logger.warn("LLM query log with ID {} not found", queryLogId);
+            log.warn("LLM query log with ID {} not found", queryLogId);
             return Optional.empty();
         }
 
@@ -52,7 +44,7 @@ public class LlmPricingService {
         Optional<LlmModelPrice> modelPrice = modelPriceRepository.findById(modelFamily);
 
         if (modelPrice.isEmpty()) {
-            logger.warn("No price found for model family: {}", modelFamily);
+            log.warn("No price found for model family: {}", modelFamily);
             return Optional.empty();
         }
 

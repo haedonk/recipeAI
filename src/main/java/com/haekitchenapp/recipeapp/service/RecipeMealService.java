@@ -3,15 +3,12 @@ package com.haekitchenapp.recipeapp.service;
 import com.haekitchenapp.recipeapp.entity.MealType;
 import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.entity.RecipeMeal;
-import com.haekitchenapp.recipeapp.entity.composite.RecipeCuisine;
-import com.haekitchenapp.recipeapp.entity.composite.RecipeCuisineId;
 import com.haekitchenapp.recipeapp.entity.composite.RecipeMealId;
 import com.haekitchenapp.recipeapp.repository.MealTypeRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeMealRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

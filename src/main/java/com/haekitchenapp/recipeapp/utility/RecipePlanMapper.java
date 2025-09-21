@@ -1,9 +1,13 @@
 package com.haekitchenapp.recipeapp.utility;
 
-import com.haekitchenapp.recipeapp.entity.*;
+import com.haekitchenapp.recipeapp.entity.MealType;
+import com.haekitchenapp.recipeapp.entity.Recipe;
+import com.haekitchenapp.recipeapp.entity.RecipePlan;
+import com.haekitchenapp.recipeapp.entity.User;
 import com.haekitchenapp.recipeapp.model.request.recipe.BulkRecipePlanRequest;
 import com.haekitchenapp.recipeapp.model.response.RecipePlanSimple;
-import com.haekitchenapp.recipeapp.model.response.recipe.*;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipePlanResponse;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.repository.MealTypeRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,9 +24,13 @@ public class RecipePlanMapper {
     private final MealTypeRepository mealTypeRepository;
     private final RecipeRepository recipeRepository;
 
-    public List<RecipePlan> toEntity(List<BulkRecipePlanRequest> bulkPlanRequests, User user) {
+
+    public List<RecipePlan> toEntity(List<BulkRecipePlanRequest> bulkPlanRequests, Long userId) {
         return bulkPlanRequests.stream().map(request -> {
             RecipePlan plan = new RecipePlan();
+            // Create a User reference with just the ID (JPA will manage the relationship)
+            User user = new User();
+            user.setId(userId);
             plan.setUser(user);
             plan.setPlanDate(request.getPlanDate());
 
@@ -44,8 +52,6 @@ public class RecipePlanMapper {
             return plan;
         }).toList();
     }
-
-
 
     public List<RecipePlanResponse> toResponse(List<RecipePlan> recipePlans) {
         return recipePlans.stream().map(recipePlan -> {

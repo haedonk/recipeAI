@@ -1,7 +1,6 @@
 package com.haekitchenapp.recipeapp.service;
 
 import com.haekitchenapp.recipeapp.entity.EmailVerification;
-import com.haekitchenapp.recipeapp.entity.User;
 import com.haekitchenapp.recipeapp.exception.InvalidValidationCodeException;
 import com.haekitchenapp.recipeapp.exception.UserNotFoundException;
 import com.haekitchenapp.recipeapp.model.request.email.VerifyEmailRequestDto;
@@ -9,9 +8,8 @@ import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.repository.EmailVerificationRepository;
 import com.haekitchenapp.recipeapp.repository.UserRepository;
 import com.haekitchenapp.recipeapp.utility.UserMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -22,45 +20,14 @@ import java.util.Random;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final EmailVerificationRepository emailVerificationRepository;
+    private final EmailService emailService;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private EmailVerificationRepository emailVerificationRepository;
-
-    @Autowired
-    private EmailService emailService;
-
-    @Autowired
-    private UserMapper userMapper;
-
-    /**
-     * Retrieves a user ID by username with caching support.
-     * @param username The username to look up
-     * @return The user ID if found
-     * @throws UserNotFoundException if no user exists with the given username
-     */
-    @Cacheable(value = "userIdByUsername", key = "#username", unless = "#result == null")
-    public User getUserByUsername(String username) {
-        log.info("Fetching user ID for username: {}", username);
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> {
-                    log.warn("User not found with username: {}", username);
-                    return new UserNotFoundException("User not found with username: " + username);
-                });
-    }
-
-    @Cacheable(value = "userById", key = "#id", unless = "#result == null")
-    public User getUserById(Long id) {
-        log.info("Fetching user by ID: {}", id);
-        return userRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("User not found with ID: {}", id);
-                    return new UserNotFoundException("User not found with ID: " + id);
-                });
-    }
 
     public ResponseEntity<ApiResponse<Boolean>> isUserEmailVerified(Long userId) {
         log.info("Checking if user email is verified for user ID: {}", userId);
@@ -82,10 +49,10 @@ public class UserService {
                 .orElseThrow(() -> new InvalidValidationCodeException("No verification found for this user ID"));
     }
 
-    private String generateVerificationCode(User user) {
+    private String generateVerificationCode(Long userId) {
         String code = generateVerificationCode();
         EmailVerification verification = new EmailVerification();
-        verification.setUserId(user.getId());
+        verification.setUserId(userId);
         verification.setVerificationCode(code);
         verification.setExpiresAt(Timestamp.from(Instant.now().plus(Duration.ofHours(24))));
         emailVerificationRepository.save(verification);
@@ -117,13 +84,20 @@ public class UserService {
             throw new IllegalArgumentException("User ID must not be null");
         }
         EmailVerification verification = verifyByUserId(userId);
-        User user = getUserById(userId);
         if (verification.isVerified()) {
             log.warn("Email already verified for user ID: {}", userId);
             return ResponseEntity.ok(ApiResponse.success("Email already verified"));
         }
-        String code = generateVerificationCode(user);
-        emailService.sendVerificationEmail(user.getEmail(), code);
+        // Get user email and generate verification code
+        String userEmail = getUserEmailById(userId);
+        String code = generateVerificationCode(userId);
+        emailService.sendVerificationEmail(userEmail, code);
         return ResponseEntity.ok(ApiResponse.success("Verification email resent successfully"));
+    }
+
+    public String getUserEmailById(Long userId) {
+        log.info("Getting email for user ID: {}", userId);
+        return userRepository.findEmailById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
     }
 }

@@ -2,7 +2,6 @@ package com.haekitchenapp.recipeapp.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.util.Set;
 
 @Entity
 @Table(name = "meal_type")

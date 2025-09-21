@@ -1,7 +1,7 @@
 package com.haekitchenapp.recipeapp.model.request.recipe;
 
-import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -10,7 +10,6 @@ import java.time.LocalDate;
 @Data
 public class BulkRecipePlanRequest {
     @NotNull(message = "Plan date is required")
-    @FutureOrPresent(message = "Plan date must be today or in the future")
     private LocalDate planDate;
 
     @NotNull(message = "Meal type ID is required")

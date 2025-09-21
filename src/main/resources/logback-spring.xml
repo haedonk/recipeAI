@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+    <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener"/>
+
+    <!-- === Grafana Cloud (Loki) === -->
+    <property name="LOKI_URL"  value="https://logs-prod-021.grafana.net/loki/api/v1/push"/>
+    <property name="LOKI_USER" value="1339093"/> <!-- your stack ID -->
+    <property name="LOKI_PASS" value="${GRAFANA_LOKI_TOKEN}"/> <!-- set in your env -->
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- === Loki4j appender for v1.5.x === -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http class="com.github.loki4j.logback.JavaHttpSender">
+            <url>${LOKI_URL}</url>
+            <auth class="com.github.loki4j.logback.AbstractHttpSender$BasicAuth">
+                <username>${LOKI_USER}</username>
+                <password>${LOKI_PASS}</password>
+            </auth>
+        </http>
+
+        <format class="com.github.loki4j.logback.JsonEncoder">
+            <!-- labels are a single pattern string in 1.5.x -->
+            <label>
+                <pattern>service=recipe-api,env=${ENV},level=%level,host=${HOSTNAME}</pattern>
+            </label>
+            <message>
+                <pattern>%msg %ex</pattern>
+            </message>
+        </format>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </root>
+</configuration>

@@ -3,14 +3,14 @@ package com.haekitchenapp.recipeapp.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.haekitchenapp.recipeapp.config.api.OpenAiConfig;
-import com.haekitchenapp.recipeapp.entity.LlmQueryLog;
 import com.haekitchenapp.recipeapp.model.request.togetherAi.RoleContent;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeAISkeleton;
-import com.haekitchenapp.recipeapp.repository.LlmQueryLogRepository;
 import com.openai.client.OpenAIClient;
 import com.openai.models.ChatModel;
-import com.openai.models.chat.completions.*;
-import com.openai.models.completions.CompletionUsage;
+import com.openai.models.chat.completions.ChatCompletion;
+import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.chat.completions.ChatCompletionSystemMessageParam;
+import com.openai.models.chat.completions.ChatCompletionUserMessageParam;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,8 +28,7 @@ public class OpenAiApi {
 
     private final OpenAIClient openAIClient;
     private final OpenAiConfig config;
-    private final LlmQueryLogRepository llmQueryLogRepository;
-    private final LlmPricingService llmPricingService;
+    private final LlmLoggingService llmLoggingService;
     private final UnitService unitService;
 
     // ---- Public API (same shape as before, now returns the SDK object) ----
@@ -38,8 +37,8 @@ public class OpenAiApi {
         ChatCompletionCreateParams params = buildParams(config.getChatModel(), systemPrompt, messages, false);
         log.info("OpenAI SDK Chat.create: model={}, messages={}", config.getChatModel(), messages.size());
         ChatCompletion completion = openAIClient.chat().completions().create(params);
-        // optional: persist a short log like before
-        saveQueryLog(config.getChatModel(), summarizePrompt(systemPrompt, messages), completion);
+        // Save log with separate system and user prompts
+        llmLoggingService.saveQueryLog(config.getChatModel(), systemPrompt, messages, completion);
         return completion;
     }
 
@@ -48,8 +47,8 @@ public class OpenAiApi {
         log.info("OpenAI SDK Chat.create: model={}, messages={}", config.getChatModel(), messages.size());
         ChatCompletion completion = openAIClient.chat().completions().create(params);
         log.info("Completion received: {}", completion);
-        // optional: persist a short log like before
-        saveQueryLog(config.getChatModel(), summarizePrompt(systemPrompt, messages), completion);
+        // Save log with separate system and user prompts
+        llmLoggingService.saveQueryLog(config.getChatModel(), systemPrompt, messages, completion);
         return getRecipeFromCompletion(completion);
     }
 
@@ -58,8 +57,8 @@ public class OpenAiApi {
         log.info("OpenAI SDK Chat.create: model={}, messages={}", config.getChatModel(), messages.size());
         ChatCompletion completion = openAIClient.chat().completions().create(params);
         log.info("Completion received: {}", completion);
-        // optional: persist a short log like before
-        saveQueryLog(config.getChatModel(), summarizePrompt(systemPrompt, messages), completion);
+        // Save log with separate system and user prompts
+        llmLoggingService.saveQueryLog(config.getChatModel(), systemPrompt, messages, completion);
         return getRecipeFromCompletion(completion);
     }
 
@@ -108,7 +107,8 @@ public class OpenAiApi {
         ChatCompletionCreateParams params = buildParams(config.getChatModel(), null, messages, false);
         log.info("OpenAI SDK Chat.create: model={}, messages={}", config.getChatModel(), messages.size());
         ChatCompletion completion = openAIClient.chat().completions().create(params);
-        saveQueryLog(config.getChatModel(), summarizePrompt(null, messages), completion);
+        // Use the version that takes systemPrompt and messages directly
+        llmLoggingService.saveQueryLog(config.getChatModel(), null, messages, completion);
         return completion;
     }
 
@@ -116,7 +116,8 @@ public class OpenAiApi {
         ChatCompletionCreateParams params = buildParams(model, systemPrompt, messages, false);
         log.info("OpenAI SDK Chat.create: model={}, messages={}", model, messages.size());
         ChatCompletion completion = openAIClient.chat().completions().create(params);
-        saveQueryLog(model, summarizePrompt(systemPrompt, messages), completion);
+        // Use the version that takes systemPrompt and messages directly
+        llmLoggingService.saveQueryLog(model, systemPrompt, messages, completion);
         return completion;
     }
 
@@ -165,59 +166,5 @@ public class OpenAiApi {
         if (model == null) return true;
         String m = model.toLowerCase();
         return !(m.startsWith("gpt-5") || m.startsWith("o1") || m.startsWith("o3"));
-    }
-
-    private String summarizePrompt(String systemPrompt, List<RoleContent> messages) {
-        String head = (systemPrompt != null ? ("SYS: " + systemPrompt + " | ") : "");
-        String first = messages.isEmpty() ? "" : messages.get(0).getContent();
-        String txt = (head + first);
-        return txt.length() > 100 ? txt.substring(0, 100) + "..." : txt;
-    }
-
-    private void saveQueryLog(String model, String prompt, ChatCompletion completion) {
-        try {
-            String text = completion.choices().isEmpty() ? "" :
-                    completion.choices().get(0).message().content().orElse("");
-            if (text.length() > 100) text = text.substring(0, 100) + "...";
-            long total = 0L;
-            long promptTokens = 0L;
-            long completionTokens = 0L;
-            long reasoningTokens = 0L;
-            if(completion.usage().isPresent()){
-                CompletionUsage usage = completion.usage().get();
-                total = usage.totalTokens();
-                promptTokens = usage.promptTokens();
-                completionTokens = usage.completionTokens();
-                reasoningTokens = usage.completionTokensDetails().isPresent() && usage.completionTokensDetails().get().reasoningTokens().isPresent() ?
-                        usage.completionTokensDetails().get().reasoningTokens().get() : 0L;
-            } else {
-                log.warn("No usage info in completion response");
-            }
-
-            // Create and save the LlmQueryLog
-            LlmQueryLog queryLog = new LlmQueryLog(
-                    completion.id(),
-                    model,
-                    prompt,
-                    text,
-                    (int) total,
-                    (int) promptTokens,
-                    (int) completionTokens,
-                    (int) reasoningTokens,
-                    0L
-            );
-
-            // Save the log to get an ID
-            LlmQueryLog savedLog = llmQueryLogRepository.save(queryLog);
-
-            log.info("Saved LLM query log with ID: {}", savedLog.getId());
-
-            // Calculate and update the pricing information
-            llmPricingService.calculateAndUpdateQueryPrice(savedLog.getId());
-
-            log.debug("Saved query log with ID: {} and calculated pricing", savedLog.getId());
-        } catch (Exception e) {
-            log.warn("Failed to save LLM log: {}", e.getMessage());
-        }
     }
 }

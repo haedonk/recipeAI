@@ -3,6 +3,7 @@ package com.haekitchenapp.recipeapp.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,16 +14,16 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import java.security.Key;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
+@Slf4j
 public class JwtUtils {
-    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
     @Value("${spring.security.jwt.secret}")
     private String jwtSecret;
@@ -36,30 +37,37 @@ public class JwtUtils {
     }
 
     public String generateJwtToken(UserDetails userPrincipal) {
+        com.haekitchenapp.recipeapp.entity.User user = (com.haekitchenapp.recipeapp.entity.User) userPrincipal;
         return Jwts.builder()
-                .setSubject(userPrincipal.getUsername())
+                .subject(userPrincipal.getUsername())
+                .claim("userId", user.getId())
                 .claim("authorities", userPrincipal.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()))
                 .claim("enabled", userPrincipal.isEnabled())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(key(), SignatureAlgorithm.HS512)
+                .issuedAt(new Date())
+                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .signWith(key())
                 .compact();
     }
 
-    private Key key() {
+    private SecretKey key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
     }
 
     public String getUserNameFromJwtToken(String token) {
-        return Jwts.parser().setSigningKey(key()).build()
-                .parseClaimsJws(token).getBody().getSubject();
+        return Jwts.parser().verifyWith(key()).build()
+                .parseSignedClaims(token).getPayload().getSubject();
+    }
+
+    public Long getUserIdFromJwtToken(String token) {
+        return Jwts.parser().verifyWith(key()).build()
+                .parseSignedClaims(token).getPayload().get("userId", Long.class);
     }
 
     public UserDetails getUserDetailsFromJwtToken(String token) {
-        Claims claims = Jwts.parser().setSigningKey(key()).build()
-                .parseClaimsJws(token).getBody();
+        Claims claims = Jwts.parser().verifyWith(key()).build()
+                .parseSignedClaims(token).getPayload();
 
         String username = claims.getSubject();
         boolean enabled = claims.get("enabled", Boolean.class);
@@ -76,16 +84,16 @@ public class JwtUtils {
 
     public boolean validateJwtToken(String authToken) {
         try {
-            Jwts.parser().setSigningKey(key()).build().parseClaimsJws(authToken);
+            Jwts.parser().verifyWith(key()).build().parseSignedClaims(authToken);
             return true;
         } catch (MalformedJwtException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
+            log.error("Invalid JWT token: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
-            logger.error("JWT token is expired: {}", e.getMessage());
+            log.error("JWT token is expired: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            logger.error("JWT token is unsupported: {}", e.getMessage());
+            log.error("JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            logger.error("JWT claims string is empty: {}", e.getMessage());
+            log.error("JWT claims string is empty: {}", e.getMessage());
         }
 
         return false;

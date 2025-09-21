@@ -1,15 +1,15 @@
 package com.haekitchenapp.recipeapp.controller;
 
-import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.entity.RecipeLikes;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeUserLikeDto;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.service.JwtTokenService;
 import com.haekitchenapp.recipeapp.service.UserInteractionService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,29 +18,29 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/user/interaction")
 @Slf4j
+@RequiredArgsConstructor
 public class UserInteractionController {
 
-
-    @Autowired
-    private UserInteractionService userInteractionService;
+    private final UserInteractionService userInteractionService;
+    private final JwtTokenService jwtTokenService;
 
     @PostMapping("/like-recipe")
-    public ResponseEntity<ApiResponse<Boolean>> toggleRecipeLike(@RequestBody @Valid RecipeUserLikeDto recipeUserLikeDto) {
-        log.info("Received request to toggle like for recipe ID: {} by user ID: {}", recipeUserLikeDto.getRecipeId(),
-                recipeUserLikeDto.getUserId());
-        return userInteractionService.toggleRecipeLike(recipeUserLikeDto.getRecipeId(), recipeUserLikeDto.getUserId());
+    public ResponseEntity<ApiResponse<Boolean>> toggleRecipeLike(@RequestBody @Valid RecipeUserLikeDto recipeUserLikeDto, HttpServletRequest request) {
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
+        log.info("Received request to toggle like for recipe ID: {} by user ID: {}", recipeUserLikeDto.getRecipeId(), userId);
+        return userInteractionService.toggleRecipeLike(recipeUserLikeDto.getRecipeId(), userId);
     }
 
-    @GetMapping("/like-recipe/{userId}")
-    public ResponseEntity<ApiResponse<List<RecipeLikes>>> getRecipeLikesByUserId(
-            @PathVariable Long userId) {
+    @GetMapping("/like-recipe")
+    public ResponseEntity<ApiResponse<List<RecipeLikes>>> getRecipeLikesByUserId(HttpServletRequest request) {
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
         log.info("Received request to get recipe likes for user ID: {}", userId);
         return userInteractionService.getRecipeLikesByUserId(userId);
     }
 
-    @GetMapping("/like-recipe/recipes/{userId}")
-    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> getRecipeLikesByUserIdForRecipes(
-            @PathVariable Long userId) {
+    @GetMapping("/like-recipe/recipes")
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> getRecipeLikesByUserIdForRecipes(HttpServletRequest request) {
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
         log.info("Received request to get recipes likes for user ID: {}", userId);
         return userInteractionService.getRecipeTitleDtosByUserId(userId);
     }
@@ -52,11 +52,10 @@ public class UserInteractionController {
         return userInteractionService.getRecipeLikesByRecipeId(recipeId);
     }
 
-    @GetMapping("/like-recipe/single/{userId}/{recipeId}")
-    public ResponseEntity<ApiResponse<Boolean>> isRecipeLikedByUser(
-            @PathVariable Long userId, @PathVariable Long recipeId) {
+    @GetMapping("/like-recipe/single/{recipeId}")
+    public ResponseEntity<ApiResponse<Boolean>> isRecipeLikedByUser(@PathVariable Long recipeId, HttpServletRequest request) {
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
         log.info("Received request to check if recipe ID: {} is liked by user ID: {}", recipeId, userId);
         return userInteractionService.isRecipeLikedByUser(userId, recipeId);
     }
-
 }

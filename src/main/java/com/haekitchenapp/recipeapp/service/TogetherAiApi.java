@@ -1,7 +1,6 @@
 package com.haekitchenapp.recipeapp.service;
 
 import com.haekitchenapp.recipeapp.config.api.TogetherAiConfig;
-import com.haekitchenapp.recipeapp.entity.LlmQueryLog;
 import com.haekitchenapp.recipeapp.exception.ClientSide4XXException;
 import com.haekitchenapp.recipeapp.exception.HttpError5XXException;
 import com.haekitchenapp.recipeapp.exception.LlmApiException;
@@ -10,9 +9,8 @@ import com.haekitchenapp.recipeapp.model.request.togetherAi.LLMRequestEmbedDto;
 import com.haekitchenapp.recipeapp.model.request.togetherAi.LLMRequestSummarizeDto;
 import com.haekitchenapp.recipeapp.model.request.togetherAi.RoleContent;
 import com.haekitchenapp.recipeapp.model.response.togetherAi.LlmResponse;
-import com.haekitchenapp.recipeapp.repository.LlmQueryLogRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -26,16 +24,12 @@ import static com.haekitchenapp.recipeapp.config.constants.Constant.*;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TogetherAiApi {
 
-    @Autowired
-    private WebClient togetherWebClient;
-
-    @Autowired
-    private TogetherAiConfig config;
-
-    @Autowired
-    private LlmQueryLogRepository llmQueryLogRepository;
+    private final WebClient togetherWebClient;
+    private final TogetherAiConfig config;
+    private final LlmLoggingService llmLoggingService;
 
     public LlmResponse callIsBadRecipe(String recipeDto, Long recipeId) {
         RoleContent systemRole = RoleContent.getUserRole(recipeDto);
@@ -43,35 +37,21 @@ public class TogetherAiApi {
         llmRequest.getMessages().add(systemRole);
         LlmResponse response = getChatResponse(llmRequest);
         if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-            saveQueryLog(config.getChatSmallModel(), recipeDto, response, recipeId);
+            llmLoggingService.saveTogetherAiQueryLog(config.getChatSmallModel(), recipeDto, response, recipeId);
         } else {
             throw new LlmApiException("Context not returned in the response");
         }
         return response;
     }
 
-    private void saveQueryLog(String model, String prompt, LlmResponse response, Long recipeId) {
-        String llmResponse = response.getChoices() == null ? response.getData().get(0).getEmbedding().toString() :
-                response.getChoices().get(0).getMessage().getContent();
-        if(llmResponse.length() > 100) llmResponse = llmResponse.substring(0, 100) + "..."; // Truncate if too long
-        llmQueryLogRepository.save(new LlmQueryLog(
-                response.getId(), model, prompt, llmResponse,
-                response.getUsage().getTotalTokens().intValue(), response.getUsage().getPromptTokens().intValue(),
-                response.getUsage().getCompletionTokens().intValue(), 0, recipeId
-        ));
-    }
-
-
     public LlmResponse callLLMRewrite(String instructions, Long recipeId){
-
         String prompt = REWRITE_PROMPT + instructions;
-
         RoleContent systemRole = RoleContent.getUserRole(prompt);
         LLMRequest llmRequest = LLMRequest.getDefaultChatRequest(config.getChatModel(), RECIPE_SYSTEM_PROMPT);
         llmRequest.getMessages().add(systemRole);
         LlmResponse response = getChatResponse(llmRequest);
         if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-            saveQueryLog(config.getChatModel(), prompt, response, recipeId);
+            llmLoggingService.saveTogetherAiQueryLog(config.getChatModel(), prompt, response, recipeId);
         } else {
             throw new LlmApiException("Context not returned in the response");
         }
@@ -89,7 +69,7 @@ public class TogetherAiApi {
         llmRequest.getMessages().add(systemRole);
         LlmResponse response = getChatResponse(llmRequest);
         if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-            saveQueryLog(config.getChatModel(), prompt, response, recipeId);
+            llmLoggingService.saveTogetherAiQueryLog(config.getChatModel(), prompt, response, recipeId);
         } else {
             throw new LlmApiException("Context not returned in the response");
         }
@@ -103,7 +83,7 @@ public class TogetherAiApi {
         llmRequest.getMessages().add(systemRole);
         LlmResponse response = getChatResponse(llmRequest);
         if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-            saveQueryLog(config.getChatSmallModel(), prompt, response, recipeId);
+            llmLoggingService.saveTogetherAiQueryLog(config.getChatSmallModel(), prompt, response, recipeId);
         } else {
             throw new LlmApiException("Context not returned in the response");
         }
@@ -155,7 +135,7 @@ public class TogetherAiApi {
         LLMRequest llmRequest = LLMRequest.getDefaultEmbedRequest(config.getEmbedModel(), List.of(EMBED_PROMPT + input));
         LlmResponse response = getEmbedResponse(llmRequest);
         if (response != null && response.getData() != null && !(response.getData().get(0).getEmbedding().length == 0)) {
-            saveQueryLog(config.getEmbedModel(), llmRequest.getInput().toString(), response, recipeId);
+            llmLoggingService.saveTogetherAiQueryLog(config.getEmbedModel(), llmRequest.getInput().toString(), response, recipeId);
         } else {
             throw new LlmApiException("Context not returned in the response");
         }

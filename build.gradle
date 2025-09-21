@@ -6,37 +6,36 @@ plugins {
 }
 
 group = 'com.recipe'
-version = '0.0.1-SNAPSHOT'
+version = '0.0.2'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
+        toolchain {
+                languageVersion = JavaLanguageVersion.of(17)
+        }
 }
 
 repositories {
-	mavenCentral()
+        mavenCentral()
 }
 
 dependencies {
         // Spring Boot
-        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+        implementation 'org.springframework.boot:spring-boot-starter-web'          // MVC server
+        implementation 'org.springframework.boot:spring-boot-starter-web'      // keep Tomcat MVC
+        implementation 'org.springframework.boot:spring-boot-starter-webflux'  // for WebClient + Reactor Netty
         implementation 'org.springframework.boot:spring-boot-starter-security'
-        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-mail'
-        implementation 'org.springframework.boot:spring-boot-starter-webflux'
-
-        // Validation
-        implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
-        implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
+        implementation 'org.springframework.boot:spring-boot-starter-actuator'
+        implementation 'org.springframework.boot:spring-boot-starter-validation'   // replaces explicit validator deps
 
         // JWT
         implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
-        runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
-        runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+        runtimeOnly   'io.jsonwebtoken:jjwt-impl:0.12.3'
+        runtimeOnly   'io.jsonwebtoken:jjwt-jackson:0.12.3'
 
         // Database
-        implementation 'org.postgresql:postgresql:42.7.2'
+        implementation 'org.postgresql:postgresql' // version managed by Boot
 
         // Lombok
         compileOnly 'org.projectlombok:lombok:1.18.28'
@@ -46,12 +45,11 @@ dependencies {
         implementation 'org.mapstruct:mapstruct:1.5.5.Final'
         annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 
-        // Spring Batch
-        implementation 'org.springframework.boot:spring-boot-starter-batch:3.4.3'
-        implementation 'org.springframework.batch:spring-batch-core:5.0.3'
+        // Grafana Loki Logback appender
+        implementation 'com.github.loki4j:loki-logback-appender:1.5.1'
 
-
-        implementation("com.openai:openai-java-spring-boot-starter:3.4.1")
+        // OpenAI
+        implementation 'com.openai:openai-java-spring-boot-starter:3.4.1'
 
         // Dev
         developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -64,11 +62,19 @@ dependencies {
         testImplementation 'org.spockframework:spock-core:2.3-groovy-4.0'
         testImplementation 'org.spockframework:spock-spring:2.3-groovy-4.0'
         testImplementation 'org.apache.groovy:groovy-json:4.0.21'
-        testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
+        testImplementation 'org.testcontainers:junit-jupiter:1.21.3'
         testImplementation 'org.testcontainers:postgresql:1.19.7'
         testImplementation 'org.assertj:assertj-core:3.26.3'
         testImplementation 'org.wiremock:wiremock-standalone:3.9.0'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+
+configurations.configureEach {
+        resolutionStrategy {
+                force 'com.github.loki4j:loki-logback-appender:1.5.1'
+                force 'org.apache.commons:commons-compress:1.26.0'
+        }
 }
 
 tasks.withType(Test).configureEach {

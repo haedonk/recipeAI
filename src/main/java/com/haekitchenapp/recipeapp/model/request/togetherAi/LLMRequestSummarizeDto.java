@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Data
 public class LLMRequestSummarizeDto {

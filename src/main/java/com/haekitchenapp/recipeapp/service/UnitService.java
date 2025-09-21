@@ -1,13 +1,11 @@
 package com.haekitchenapp.recipeapp.service;
 
-import com.haekitchenapp.recipeapp.entity.Recipe;
 import com.haekitchenapp.recipeapp.entity.Unit;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeIngredientRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.repository.UnitRepository;
-import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -19,10 +17,10 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class UnitService {
 
-    @Autowired
-    private UnitRepository unitRepository;
+    private final UnitRepository unitRepository;
 
     private Map<Long, String> unitCache;
 

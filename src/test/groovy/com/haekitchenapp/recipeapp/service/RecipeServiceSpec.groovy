@@ -27,17 +27,13 @@ class RecipeServiceSpec extends Specification {
     RecipeMapper recipeMapper
     RecipeService recipeService
     RecipeCuisineServiceImpl recipeCuisineService
-    UnitService unitService
-    IngredientService ingredientService
 
     def setup() {
         recipeRepository = Mock(RecipeRepository)
-        unitService = Mock(UnitService)
-        ingredientService = Mock(IngredientService)
-        recipeMapper = new RecipeMapper(unitService, ingredientService)
+        recipeMapper = Mock(RecipeMapper)
         recipeIngredientRepository = Mock(RecipeIngredientRepository)
         recipeCuisineService = Mock(RecipeCuisineServiceImpl)
-        recipeService = new RecipeService(recipeRepository, recipeIngredientRepository, recipeMapper, recipeCuisineService)
+        recipeService = Spy(new RecipeService(recipeRepository, recipeIngredientRepository, recipeMapper, recipeCuisineService))
     }
 
     def "searchByTitle returns recipes when matches found"() {
@@ -271,9 +267,7 @@ class RecipeServiceSpec extends Specification {
         recipeRepository.findByIdWithSimple(5L) >> Optional.of(projection)
         recipeIngredientRepository.findIngredientIdsByRecipeId(5L) >> ingredientIds
         recipeCuisineService.getCuisineNamesByRecipeId(5L) >> cuisines
-        recipeMapper.toSimpleDto(projection, ingredientIds, cuisines, 5L) >> dto
-        ingredientService.getIngredientNameById(11L) >> 'Bread'
-        ingredientService.getIngredientNameById(12L) >> 'Butter'
+        recipeMapper.toDetailedDto(projection, ingredientIds, cuisines, 5L) >> dto
 
         when:
         RecipeDetailsDto result = recipeService.getRecipeDetails(5L)
@@ -414,9 +408,7 @@ class RecipeServiceSpec extends Specification {
         recipeRepository.save(mapped) >> mapped
 
         when:
-        def service = Spy(recipeService)
-        service.updateRecipe(*_) >> mapped
-        ResponseEntity<ApiResponse<Recipe>> response = service.update(request)
+        ResponseEntity<ApiResponse<Recipe>> response = recipeService.update(request)
 
         then:
         response.body.success

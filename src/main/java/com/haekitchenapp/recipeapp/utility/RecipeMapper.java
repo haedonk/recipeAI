@@ -19,8 +19,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -43,17 +45,21 @@ public class RecipeMapper {
         recipe.setTitle(request.getTitle());
         recipe.setInstructions(request.getInstructions());
         recipe.setSummary(request.getSummary() != null ? request.getSummary() : "");
-        recipe.setEmbedding(request.getEmbedding() != null ? request.getEmbedding() : null);
+        recipe.setEmbedding(request.getEmbedding());
         recipe.setPrepTime(request.getPrepTime());
         recipe.setCookTime(request.getCookTime());
         recipe.setServings(request.getServings());
         recipe.setAiGenerated(request.getAiGenerated() != null ? request.getAiGenerated() : false);
         recipe.setCleanedFrom(request.getCleanedFrom());
 
-        if(Boolean.TRUE.equals(request.getAiGenerated()))
-            unitService.persistAiGeneratedUnits(request.getIngredients());
+        Set<RecipeIngredientRequest> ingredientRequests = Optional.ofNullable(request.getIngredients())
+                .orElseGet(Collections::emptySet);
 
-        Set<RecipeIngredient> ingredients = request.getIngredients().stream()
+        if(Boolean.TRUE.equals(request.getAiGenerated()) && !ingredientRequests.isEmpty()) {
+            unitService.persistAiGeneratedUnits(ingredientRequests);
+        }
+
+        Set<RecipeIngredient> ingredients = ingredientRequests.stream()
             .map(ri -> mapToRecipeIngredient(ri, recipe, request.getAiGenerated()))
             .collect(Collectors.toSet());
 
@@ -63,28 +69,38 @@ public class RecipeMapper {
 
     private RecipeIngredient mapToRecipeIngredient(RecipeIngredientRequest riRequest, Recipe recipe, Boolean aiGenerated) {
         Ingredient ingredient = ingredientService.getIngredientElseInsert(riRequest.getName());
+        if (ingredient == null) {
+            ingredient = new Ingredient();
+            ingredient.setName(riRequest.getName());
+        }
 
         RecipeIngredient ri = new RecipeIngredient();
         ri.setRecipe(recipe);
         ri.setIngredient(ingredient);
         ri.setQuantity(fractionToFloat(riRequest.getQuantity()));
 
-        if(Objects.isNull(riRequest.getUnitId()) && Objects.isNull(riRequest.getUnitName())){
+        String unitName = riRequest.getUnitName();
+        Long unitId = riRequest.getUnitId();
+        boolean aiGeneratedFlag = Boolean.TRUE.equals(aiGenerated);
+
+        if(Objects.isNull(unitId) && (unitName == null || unitName.isBlank())){
             throw new UnitNotFoundException("Unit ID and Unit Name cannot be null");
         }
 
-        // Validate unit ID exists before setting it
-        Long unitId = riRequest.getUnitId();
-
         try {
-            if (Objects.nonNull(unitId) && !unitService.existsById(unitId) && !aiGenerated) {
-                throw new UnitNotFoundException("Unit not found with ID: " + unitId);
-            } else if (aiGenerated){
-                Unit unit = unitService.getUnitByName(riRequest.getUnitName());
+            if (Objects.isNull(unitId) && Objects.nonNull(unitName)) {
+                Unit unit = unitService.getUnitByName(unitName);
                 unitId = Objects.nonNull(unit) ? unit.getId() : null;
+                if (unitId == null && !aiGeneratedFlag) {
+                    throw new UnitNotFoundException("Unit not found with name: " + unitName);
+                }
+            } else if (Objects.nonNull(unitId) && !aiGeneratedFlag) {
+                if (!unitService.existsById(unitId)) {
+                    log.warn("Unit with ID {} not found while mapping ingredient '{}'", unitId, riRequest.getName());
+                }
             }
         } catch (Exception e){
-            log.info("Exception occurred while validating unit ID {} and name {}: {}", unitId, riRequest.getUnitName(), e.getMessage());
+            log.info("Exception occurred while validating unit ID {} and name {}: {}", unitId, unitName, e.getMessage());
             throw e;
         }
 
@@ -123,7 +139,10 @@ public class RecipeMapper {
         recipeResponse.setCookTime(recipe.getCookTime());
         recipeResponse.setServings(recipe.getServings());
 
-        Set<RecipeIngredientResponse> ingredients = recipe.getIngredients().stream()
+        Set<RecipeIngredient> recipeIngredients = Optional.ofNullable(recipe.getIngredients())
+                .orElseGet(Collections::emptySet);
+
+        Set<RecipeIngredientResponse> ingredients = recipeIngredients.stream()
                 .map(ingredientRecipe -> toRecipeIngredientRequest(ingredientRecipe, raw))
                 .collect(Collectors.toSet());
 
@@ -132,33 +151,43 @@ public class RecipeMapper {
     }
 
     private RecipeIngredientResponse toRecipeIngredientRequest(RecipeIngredient ri, boolean raw) {
+        String ingredientName = ri.getIngredient() != null ? ri.getIngredient().getName() : null;
+        Float quantity = ri.getQuantity();
+        String displayQuantity = null;
+        if (quantity != null) {
+            displayQuantity = raw ? quantity.toString() : floatToFraction(quantity);
+        }
+        Float numericQuantity = raw ? quantity : null;
+
         return new RecipeIngredientResponse(
                 ri.getId(),
-                ri.getIngredient().getName(),
-                raw ?  ri.getQuantity().toString() : floatToFraction(ri.getQuantity()),
-                raw ?  ri.getQuantity() : null,
+                ingredientName,
+                displayQuantity,
+                numericQuantity,
                 getUnit(ri.getUnitId())
         );
     }
 
     private @NotNull String getUnit(Long unitId) {
-        return unitService.getUnitNameById(unitId);
+        if (unitId == null) {
+            return null;
+        }
+        String unitName = unitService.getUnitNameById(unitId);
+        return unitName != null ? unitName : "Unknown Unit";
     }
 
     public RecipeDetailsDto toSimpleDto(RecipeSummaryProjection recipe, List<Long> ingredients, List<String> cuisines, Long id) {
+        List<String> ingredientNames = resolveIngredientNames(ingredients);
+        List<String> cuisineNames = Optional.ofNullable(cuisines).orElse(List.of());
 
-        List<String> ingredientNames = ingredients.stream()
-                .map(ingredientService::getIngredientNameById).toList();
-
-        return new RecipeDetailsDto(recipe.getTitle(), ingredientNames, cuisines, recipe.getInstructions(), id);
+        return new RecipeDetailsDto(recipe.getTitle(), ingredientNames, cuisineNames, recipe.getInstructions(), id);
     }
 
     public RecipeDetailsDto toDetailedDto(RecipeSummaryProjection recipe, List<Long> ingredients, List<String> cuisines, Long id) {
+        List<String> ingredientNames = resolveIngredientNames(ingredients);
+        List<String> cuisineNames = Optional.ofNullable(cuisines).orElse(List.of());
 
-        List<String> ingredientNames = ingredients.stream()
-                .map(ingredientService::getIngredientNameById).toList();
-
-        return new RecipeDetailsDto(recipe.getTitle(), ingredientNames, cuisines, recipe.getInstructions(), id);
+        return new RecipeDetailsDto(recipe.getTitle(), ingredientNames, cuisineNames, recipe.getInstructions(), id);
     }
 
     public RecipeDetailsDto toLlmDetailsDto(Recipe recipe) {
@@ -167,5 +196,15 @@ public class RecipeMapper {
                 .collect(Collectors.toList());
 
         return new RecipeDetailsDto(recipe.getTitle(), ingredients, recipe.getInstructions());
+    }
+
+    private List<String> resolveIngredientNames(List<Long> ingredientIds) {
+        return Optional.ofNullable(ingredientIds).orElse(List.of())
+                .stream()
+                .map(id -> {
+                    String name = ingredientService.getIngredientNameById(id);
+                    return name != null ? name : "Unknown Ingredient";
+                })
+                .toList();
     }
 }

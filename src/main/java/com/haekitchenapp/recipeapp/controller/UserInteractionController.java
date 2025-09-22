@@ -4,6 +4,7 @@ import com.haekitchenapp.recipeapp.entity.RecipeLikes;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeUserLikeDto;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleSummaryDto;
 import com.haekitchenapp.recipeapp.service.JwtTokenService;
 import com.haekitchenapp.recipeapp.service.UserInteractionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,7 +40,7 @@ public class UserInteractionController {
     }
 
     @GetMapping("/like-recipe/recipes")
-    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> getRecipeLikesByUserIdForRecipes(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<RecipeTitleSummaryDto>>> getRecipeLikesByUserIdForRecipes(HttpServletRequest request) {
         Long userId = jwtTokenService.getUserIdFromRequest(request);
         log.info("Received request to get recipes likes for user ID: {}", userId);
         return userInteractionService.getRecipeTitleDtosByUserId(userId);

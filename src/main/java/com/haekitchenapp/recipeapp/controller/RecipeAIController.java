@@ -8,7 +8,6 @@ import com.haekitchenapp.recipeapp.model.response.recipe.RecipeAISkeletonId;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSimilarityDto;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
 import com.haekitchenapp.recipeapp.service.JwtTokenService;
-import com.haekitchenapp.recipeapp.service.OpenAiApi;
 import com.haekitchenapp.recipeapp.service.RecipeAIService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -26,7 +25,6 @@ import java.util.List;
 public class RecipeAIController {
 
     private final RecipeAIService recipeAIService;
-    private final OpenAiApi openAiApi;
     private final JwtTokenService jwtTokenService;
 
     @GetMapping("/titles/random")

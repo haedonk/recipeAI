@@ -1,10 +1,7 @@
 package com.haekitchenapp.recipeapp.repository;
 
 import com.haekitchenapp.recipeapp.entity.Recipe;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSimilarityDto;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSummaryProjection;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,6 +20,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.id = :id")
     Optional<RecipeTitleDto> findRecipeTitleDtoById(Long id);
 
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleSummaryDto(r.id,r.title, r.summary) FROM Recipe r WHERE r.id = :id")
+    Optional<RecipeTitleSummaryDto> findRecipeTitleSummaryDtoById(Long id);
+
     @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id, r.title) FROM Recipe r WHERE LOWER(r.title) LIKE LOWER(CONCAT('%', :title, '%'))")
     List<RecipeTitleDto> findTitlesByTitleContainingIgnoreCase(@Param("title") String title, Pageable pageable);
 
@@ -38,8 +38,8 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
             "HAVING COUNT(r.title) > 1 ORDER BY COUNT(r.title) DESC")
     Page<RecipeDuplicatesByTitleDto> findDuplicateTitles(Pageable pageable);
 
-    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto(r.id,r.title,r.instructions) FROM Recipe r WHERE r.createdBy = :userId")
-    List<RecipeTitleDto> findTitlesByCreatedBy(Long userId);
+    @Query("SELECT new com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleSummaryDto(r.id,r.title,r.summary) FROM Recipe r WHERE r.createdBy = :userId")
+    List<RecipeTitleSummaryDto> findTitlesByCreatedBy(Long userId);
 
     @Query(value = "SELECT COUNT(*) FROM recipes WHERE embedding IS NOT NULL", nativeQuery = true)
     Long countByEmbeddingIsNotNull();

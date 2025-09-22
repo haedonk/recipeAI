@@ -4,6 +4,7 @@ import com.haekitchenapp.recipeapp.entity.RecipeLikes;
 import com.haekitchenapp.recipeapp.entity.composite.RecipeLikesId;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleSummaryDto;
 import com.haekitchenapp.recipeapp.repository.RecipeLikesRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +54,7 @@ public class UserInteractionService {
         return ResponseEntity.ok(ApiResponse.success("Recipe likes fetched successfully", recipeLikesRepository.findByIdRecipeId(recipeId)));
     }
 
-    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> getRecipeTitleDtosByUserId(Long userId) {
+    public ResponseEntity<ApiResponse<List<RecipeTitleSummaryDto>>> getRecipeTitleDtosByUserId(Long userId) {
         log.info("Fetching recipes for user with ID {}", userId);
         List<RecipeLikes> recipeLikesList = recipeLikesRepository.findByIdUserId(userId);
 
@@ -61,8 +62,8 @@ public class UserInteractionService {
             return ResponseEntity.ok(ApiResponse.success("No recipes found for this user", null));
         }
 
-        List<RecipeTitleDto> recipes = recipeLikesList.stream()
-                .map(like -> recipeService.findRecipeTitleDtoById(like.getId().getRecipeId()))
+        List<RecipeTitleSummaryDto> recipes = recipeLikesList.stream()
+                .map(like -> recipeService.findRecipeTitleSummaryDtoById(like.getId().getRecipeId()))
                 .filter(Objects::nonNull)
                 .toList();
 

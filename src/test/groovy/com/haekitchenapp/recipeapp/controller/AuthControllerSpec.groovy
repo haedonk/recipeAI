@@ -19,7 +19,7 @@ class AuthControllerSpec extends Specification {
     def "authenticates user successfully"() {
         given:
         def loginRequest = new LoginRequest("chef", "secret")
-        def jwtResponse = new JwtResponse("token", 42L, "chef", "chef@example.com")
+        def jwtResponse = new JwtResponse("token")
         authService.authenticateUser(_ as LoginRequest) >> jwtResponse
 
         when:
@@ -28,8 +28,8 @@ class AuthControllerSpec extends Specification {
         then:
         response.statusCode.value() == 200
         response.body.success
-        response.body.data == null
-        response.body.message == String.valueOf(jwtResponse)
+        response.body.data == jwtResponse
+        response.body.message == "User registered successfully!"
     }
 
     def "returns bad request when authentication fails"() {

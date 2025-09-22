@@ -7,10 +7,7 @@ import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException;
 import com.haekitchenapp.recipeapp.model.request.recipe.EmbedUpdateRequest;
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse;
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
+import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.service.JwtTokenService;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import com.haekitchenapp.recipeapp.service.UnitService;
@@ -95,7 +92,7 @@ public class RecipeController {
     }
 
     @GetMapping("/findByCreatedBy")
-    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findRecipesByCreatedBy(HttpServletRequest request) throws RecipeNotFoundException {
+    public ResponseEntity<ApiResponse<List<RecipeTitleSummaryDto>>> findRecipesByCreatedBy(HttpServletRequest request) throws RecipeNotFoundException {
         Long userId = jwtTokenService.getUserIdFromRequest(request);
         log.info("Received request to find recipes created by user ID: {}", userId);
         return recipeService.findRecipeByCreatedBy(userId);

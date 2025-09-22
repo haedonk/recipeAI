@@ -7,7 +7,6 @@ import com.haekitchenapp.recipeapp.model.response.recipe.RecipeAISkeletonId
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSimilarityDto
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto
 import com.haekitchenapp.recipeapp.service.JwtTokenService
-import com.haekitchenapp.recipeapp.service.OpenAiApi
 import com.haekitchenapp.recipeapp.service.RecipeAIService
 import jakarta.servlet.http.HttpServletRequest
 import java.util.Set
@@ -18,14 +17,12 @@ class RecipeAIControllerSpec extends Specification {
 
     RecipeAIController recipeAIController
     RecipeAIService recipeAIService
-    OpenAiApi openAiApi
     JwtTokenService jwtTokenService
 
     def setup() {
         recipeAIService = Mock(RecipeAIService)
-        openAiApi = Mock(OpenAiApi)
         jwtTokenService = Mock(JwtTokenService)
-        recipeAIController = new RecipeAIController(recipeAIService, openAiApi, jwtTokenService)
+        recipeAIController = new RecipeAIController(recipeAIService, jwtTokenService)
     }
 
     def "returns random titles from service"() {
@@ -38,26 +35,10 @@ class RecipeAIControllerSpec extends Specification {
         then:
         1 * recipeAIService.generateRandomRecipeTitles(5) >> ResponseEntity.ok(ApiResponse.success('found', titles))
         0 * jwtTokenService._
-        0 * openAiApi._
         response.statusCode.value() == 200
         response.body.data == titles
     }
 
-    def "searches recipes by string similarity"() {
-        given:
-        String query = 'spicy'
-        def results = [new RecipeSimilarityDto(10L, 'Spicy Curry', 'Desc', 0.91)]
-
-        when:
-        def response = recipeAIController.searchRecipesByTitleSimilarity(query)
-
-        then:
-        1 * recipeAIService.searchByAdvancedEmbedding(query) >> ResponseEntity.ok(ApiResponse.success('done', results))
-        0 * jwtTokenService._
-        0 * openAiApi._
-        response.statusCode.value() == 200
-        response.body.data == results
-    }
 
     def "searches recipes by object similarity"() {
         given:
@@ -74,7 +55,6 @@ class RecipeAIControllerSpec extends Specification {
         then:
         1 * recipeAIService.searchByAdvancedEmbeddingObject({ it == request }) >> ResponseEntity.ok(ApiResponse.success('done', results))
         0 * jwtTokenService._
-        0 * openAiApi._
         response.statusCode.value() == 200
         response.body.data == results
     }
@@ -90,7 +70,6 @@ class RecipeAIControllerSpec extends Specification {
         then:
         1 * jwtTokenService.getUserIdFromRequest(httpServletRequest) >> 42L
         1 * recipeAIService.recipeChat(query, 42L) >> ResponseEntity.ok(ApiResponse.success('created', 100L))
-        0 * openAiApi._
         response.statusCode.value() == 200
         response.body.data == 100L
     }
@@ -115,20 +94,9 @@ class RecipeAIControllerSpec extends Specification {
         then:
         1 * jwtTokenService.getUserIdFromRequest(httpServletRequest) >> 99L
         1 * recipeAIService.recipeCleanUp({ it == skeleton }, 99L) >> ResponseEntity.ok(ApiResponse.success('cleaned', 200L))
-        0 * openAiApi._
         response.statusCode.value() == 200
         response.body.data == 200L
     }
 
-    def "propagates recipe search exception"() {
-        given:
-        String query = 'missing'
-        recipeAIService.searchByAdvancedEmbedding(query) >> { throw new RecipeSearchFoundNoneException('nothing') }
 
-        when:
-        recipeAIController.searchRecipesByTitleSimilarity(query)
-
-        then:
-        thrown(RecipeSearchFoundNoneException)
-    }
 }

@@ -203,12 +203,12 @@ public class RecipeService {
         return ResponseEntity.ok(ApiResponse.success("Recipe retrieved successfully", recipe));
     }
 
-    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findRecipeByCreatedBy(Long userId){
+    public ResponseEntity<ApiResponse<List<RecipeTitleSummaryDto>>> findRecipeByCreatedBy(Long userId){
         log.info("Finding recipes created by user ID: {}", userId);
         if (userId == null) {
             throw new IllegalArgumentException("User ID must not be null");
         }
-        List<RecipeTitleDto> recipes = recipeRepository.findTitlesByCreatedBy(userId);
+        List<RecipeTitleSummaryDto> recipes = recipeRepository.findTitlesByCreatedBy(userId);
         if (recipes.isEmpty()) {
             log.warn("No recipes found for user ID: {}", userId);
             throw new RecipeNotFoundException("No recipes found for user ID: " + userId);
@@ -398,6 +398,15 @@ public class RecipeService {
             throw new IllegalArgumentException("Recipe ID must not be null");
         }
         return recipeRepository.findRecipeTitleDtoById(id)
+                .orElseThrow(() -> new RecipeNotFoundException("Recipe title dto not found with ID: " + id));
+    }
+
+    public RecipeTitleSummaryDto findRecipeTitleSummaryDtoById(Long id) {
+        log.info("Finding recipe title summary dto by ID: {}", id);
+        if (id == null) {
+            throw new IllegalArgumentException("Recipe ID must not be null");
+        }
+        return recipeRepository.findRecipeTitleSummaryDtoById(id)
                 .orElseThrow(() -> new RecipeNotFoundException("Recipe title dto not found with ID: " + id));
     }
 

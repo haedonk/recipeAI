@@ -41,6 +41,7 @@ jacocoTestReport {
                 '**/configuration/**',
                 // Exclude auto-generated classes
                 '**/Application.class',
+                    '**/OpenAiController.class',
                 '**/RecipeAppApplication.class',
                 // Exclude DTOs and POJOs (optional)
                 '**/model/**',

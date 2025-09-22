@@ -117,20 +117,22 @@ public class RecipeService {
     @Async
     public CompletableFuture<Optional<RecipeSummaryProjection>> getSimpleRecipe(Long id){
         log.info("Fetching simple recipe by ID: {}", id);
-        return CompletableFuture.completedFuture(recipeRepository.findByIdWithSimple(id));
+        Optional<RecipeSummaryProjection> projection = recipeRepository.findByIdWithSimple(id);
+        return CompletableFuture.completedFuture(projection != null ? projection : Optional.empty());
     }
 
     @Async
     public CompletableFuture<List<Long>> getRecipeIngredients(Long id){
         log.info("Fetching ingredient IDs for recipe ID: {}", id);
-        return CompletableFuture.completedFuture(recipeIngredientRepository.findIngredientIdsByRecipeId(id));
+        List<Long> ingredientIds = recipeIngredientRepository.findIngredientIdsByRecipeId(id);
+        return CompletableFuture.completedFuture(ingredientIds != null ? ingredientIds : List.of());
     }
 
     @Async
     public CompletableFuture<List<String>> getRecipeCuisines(Long id) {
         try {
             List<String> cuisines = recipeCuisineService.getCuisineNamesByRecipeId(id);
-            return CompletableFuture.completedFuture(cuisines);
+            return CompletableFuture.completedFuture(cuisines != null ? cuisines : List.of());
         } catch (Exception e) {
             log.warn("No cuisines found for recipe ID {}: {}", id, e.getMessage());
             return CompletableFuture.completedFuture(List.of());
@@ -164,10 +166,11 @@ public class RecipeService {
         List<String> recipeCuisines;
 
         try {
-            recipeDetails = simpleRecipeFuture.get()
+            Optional<RecipeSummaryProjection> optionalSummary = simpleRecipeFuture.get();
+            recipeDetails = optionalSummary
                     .orElseThrow(() -> new RecipeNotFoundException("Recipe details not found with ID: " + id));
-            recipeIngredients = ingredientsFuture.get();
-            recipeCuisines = cuisinesFuture.get();
+            recipeIngredients = Optional.ofNullable(ingredientsFuture.get()).orElse(List.of());
+            recipeCuisines = Optional.ofNullable(cuisinesFuture.get()).orElse(List.of());
         } catch (InterruptedException | ExecutionException e) {
             log.error("Error retrieving recipe details for ID {}: {}", id, e.getMessage());
             throw new RecipeNotFoundException(e.getMessage());
@@ -264,7 +267,10 @@ public class RecipeService {
     public Recipe saveRecipe(Recipe recipe) {
         log.info("Saving recipe: {}", recipe);
         try {
-            recipe = recipeRepository.save(recipe);
+            Recipe persisted = recipeRepository.save(recipe);
+            if (persisted != null) {
+                recipe = persisted;
+            }
             if(recipe.getEmbedding() != null && recipe.getEmbedding().length > 0) {
                 recipeRepository.updateEmbedding(recipe.getId(), recipe.getEmbedString());
             }
@@ -324,7 +330,10 @@ public class RecipeService {
     private Recipe updateRecipe(Recipe recipe) {
         log.info("Updating recipe: {}", recipe);
         try {
-            recipe = recipeRepository.save(recipe);
+            Recipe persisted = recipeRepository.save(recipe);
+            if (persisted != null) {
+                recipe = persisted;
+            }
             if(recipe.getEmbedding() != null && recipe.getEmbedding().length > 0) {
                 recipeRepository.updateEmbedding(recipe.getId(), recipe.getEmbedString());
             }

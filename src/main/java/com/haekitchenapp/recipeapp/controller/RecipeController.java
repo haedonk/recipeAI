@@ -11,9 +11,10 @@ import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto;
-import com.haekitchenapp.recipeapp.service.RecipeAIService;
+import com.haekitchenapp.recipeapp.service.JwtTokenService;
 import com.haekitchenapp.recipeapp.service.RecipeService;
 import com.haekitchenapp.recipeapp.service.UnitService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +33,8 @@ import java.util.concurrent.ExecutionException;
 public class RecipeController {
 
     private final RecipeService recipeService;
-
     private final UnitService unitService;
+    private final JwtTokenService jwtTokenService;
     // Create endpoints
     @PostMapping
     public ResponseEntity<ApiResponse<Recipe>> createRecipe(@RequestBody @Valid RecipeRequest recipeRequest) {
@@ -93,8 +94,9 @@ public class RecipeController {
         return recipeService.findAllIdsWithTitle(title);
     }
 
-    @GetMapping("/findByCreatedBy/{userId}")
-    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findRecipesByCreatedBy(@PathVariable Long userId) throws RecipeNotFoundException {
+    @GetMapping("/findByCreatedBy")
+    public ResponseEntity<ApiResponse<List<RecipeTitleDto>>> findRecipesByCreatedBy(HttpServletRequest request) throws RecipeNotFoundException {
+        Long userId = jwtTokenService.getUserIdFromRequest(request);
         log.info("Received request to find recipes created by user ID: {}", userId);
         return recipeService.findRecipeByCreatedBy(userId);
     }

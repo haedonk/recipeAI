@@ -171,4 +171,13 @@ public class RecipeCuisineServiceImpl implements RecipeCuisineService {
         // Create new associations
         associateRecipeWithCuisines(recipeId, cuisineIds);
     }
+
+
+    public List<String> getCuisineNamesByRecipeId(Long recipeId) {
+        log.debug("Getting cuisine names for recipe ID: {}", recipeId);
+        List<RecipeCuisine> recipeCuisines = recipeCuisineRepository.findByRecipeId(recipeId);
+        return recipeCuisines.stream()
+                .map(recipeCuisine -> recipeCuisine.getCuisine().getName())
+                .toList();
+    }
 }

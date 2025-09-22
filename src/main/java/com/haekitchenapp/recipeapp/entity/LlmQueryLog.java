@@ -46,7 +46,7 @@ public class LlmQueryLog {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String userPrompt;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(name = "sys_prompt", columnDefinition = "TEXT", nullable = false)
     private String systemPrompt;
 
     @Column(columnDefinition = "TEXT", nullable = false)

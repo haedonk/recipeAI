@@ -1,7 +1,6 @@
 package com.haekitchenapp.recipeapp.model.request.recipe;
 
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 

@@ -1,6 +1,5 @@
 package com.haekitchenapp.recipeapp.controller;
 
-import com.haekitchenapp.recipeapp.entity.User;
 import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.auth.JwtResponse;
 import com.haekitchenapp.recipeapp.model.response.auth.LoginRequest;
@@ -23,7 +22,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<JwtResponse>> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         try {
             JwtResponse jwtResponse = authService.authenticateUser(loginRequest);
-            return ResponseEntity.ok(ApiResponse.success(String.valueOf(jwtResponse)));
+            return ResponseEntity.ok(ApiResponse.success("User registered successfully!", jwtResponse));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Invalid username or password!"));

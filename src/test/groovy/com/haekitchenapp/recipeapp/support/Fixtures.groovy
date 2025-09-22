@@ -94,6 +94,7 @@ class Fixtures {
         new RecipeDetailsDto(
                 overrides.getOrDefault('title', 'Test Recipe') as String,
                 overrides.getOrDefault('ingredients', ['Salt', 'Pepper']) as List<String>,
+                overrides.getOrDefault("cuisines", ['Italian']) as List<String>,
                 overrides.getOrDefault('instructions', 'Cook well') as String,
                 overrides.getOrDefault('id', 1L) as Long
         )

@@ -43,7 +43,7 @@ public class AuthService {
             User user = (User) authentication.getPrincipal();
             log.info("Login completed successfully for user: {} (ID: {})", user.getUsername(), user.getId());
 
-            return new JwtResponse(jwt, user.getId(), user.getUsername(), user.getEmail());
+            return new JwtResponse(jwt);
         } catch (Exception e) {
             log.error("Authentication failed for user: {}. Error: {}", loginRequest.getUsername(), e.getMessage());
             throw e;

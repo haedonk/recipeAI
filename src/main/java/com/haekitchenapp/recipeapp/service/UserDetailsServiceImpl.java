@@ -4,7 +4,6 @@ package com.haekitchenapp.recipeapp.service;
 import com.haekitchenapp.recipeapp.entity.User;
 import com.haekitchenapp.recipeapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

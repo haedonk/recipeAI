@@ -6,14 +6,10 @@ import com.haekitchenapp.recipeapp.exception.RecipeSearchFoundNoneException
 import com.haekitchenapp.recipeapp.model.request.recipe.EmbedUpdateRequest
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest
 import com.haekitchenapp.recipeapp.model.response.ApiResponse
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleDto
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDuplicatesByTitleResponse
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeResponse
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSummaryProjection
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto
+import com.haekitchenapp.recipeapp.model.response.recipe.*
 import com.haekitchenapp.recipeapp.repository.RecipeIngredientRepository
 import com.haekitchenapp.recipeapp.repository.RecipeRepository
+import com.haekitchenapp.recipeapp.service.impl.RecipeCuisineServiceImpl
 import com.haekitchenapp.recipeapp.support.Fixtures
 import com.haekitchenapp.recipeapp.utility.RecipeMapper
 import org.springframework.dao.DataIntegrityViolationException
@@ -30,12 +26,18 @@ class RecipeServiceSpec extends Specification {
     RecipeIngredientRepository recipeIngredientRepository
     RecipeMapper recipeMapper
     RecipeService recipeService
+    RecipeCuisineServiceImpl recipeCuisineService
+    UnitService unitService
+    IngredientService ingredientService
 
     def setup() {
         recipeRepository = Mock(RecipeRepository)
+        unitService = Mock(UnitService)
+        ingredientService = Mock(IngredientService)
+        recipeMapper = new RecipeMapper(unitService, ingredientService)
         recipeIngredientRepository = Mock(RecipeIngredientRepository)
-        recipeMapper = Mock(RecipeMapper)
-        recipeService = new RecipeService(recipeRepository, recipeIngredientRepository, recipeMapper)
+        recipeCuisineService = Mock(RecipeCuisineServiceImpl)
+        recipeService = new RecipeService(recipeRepository, recipeIngredientRepository, recipeMapper, recipeCuisineService)
     }
 
     def "searchByTitle returns recipes when matches found"() {
@@ -189,7 +191,7 @@ class RecipeServiceSpec extends Specification {
 
     def "findRecipeById returns recipe when present"() {
         given:
-        def recipe = Fixtures.recipe(id: 77L, title: 'Stew')
+        def recipe = Fixtures.recipe(id: 77L, title: 'Stew', cuisines: ['French'])
 
         when:
         def result = recipeService.findRecipeById(77L)
@@ -264,22 +266,30 @@ class RecipeServiceSpec extends Specification {
         given:
         def projection = Fixtures.recipeSummaryProjection('Toast', 'Toast bread')
         def ingredientIds = [11L, 12L]
-        def dto = Fixtures.recipeDetailsDto(title: 'Toast', instructions: 'Toast bread', ingredients: ['Bread', 'Butter'])
-        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
-        service.getSimpleRecipe(5L) >> CompletableFuture.completedFuture(Optional.of(projection))
-        service.getRecipeIngredients(5L) >> CompletableFuture.completedFuture(ingredientIds)
-        recipeMapper.toSimpleDto(projection, ingredientIds, 5L) >> dto
+        def cuisines = ['American']
+        def dto = Fixtures.recipeDetailsDto(id: 5L, title: 'Toast', instructions: 'Toast bread', ingredients: ['Bread', 'Butter'], cuisines: ['American'])
+        recipeRepository.findByIdWithSimple(5L) >> Optional.of(projection)
+        recipeIngredientRepository.findIngredientIdsByRecipeId(5L) >> ingredientIds
+        recipeCuisineService.getCuisineNamesByRecipeId(5L) >> cuisines
+        recipeMapper.toSimpleDto(projection, ingredientIds, cuisines, 5L) >> dto
+        ingredientService.getIngredientNameById(11L) >> 'Bread'
+        ingredientService.getIngredientNameById(12L) >> 'Butter'
 
         when:
-        RecipeDetailsDto result = service.getRecipeDetails(5L)
+        RecipeDetailsDto result = recipeService.getRecipeDetails(5L)
 
         then:
-        result.is(dto)
+        result.id == dto.id
+        result.title == dto.title
+        result.cuisines == dto.cuisines
+        result.ingredients == dto.ingredients
+        result.instructions == dto.instructions
+        result.embedSummary == dto.embedSummary
     }
 
     def "getRecipeDetails throws when recipe summary is missing"() {
         given:
-        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+        def service = recipeService
         service.getSimpleRecipe(9L) >> CompletableFuture.completedFuture(Optional.empty())
         service.getRecipeIngredients(9L) >> CompletableFuture.completedFuture([1L])
 
@@ -293,7 +303,7 @@ class RecipeServiceSpec extends Specification {
 
     def "getRecipeDetails wraps async failures in RecipeNotFoundException"() {
         given:
-        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+        def service = recipeService
         service.getSimpleRecipe(7L) >> CompletableFuture.failedFuture(new RuntimeException('boom'))
         service.getRecipeIngredients(7L) >> CompletableFuture.completedFuture([])
 
@@ -308,7 +318,7 @@ class RecipeServiceSpec extends Specification {
     def "create nulls request id and delegates to createRecipe with default flag"() {
         given:
         RecipeRequest request = Fixtures.recipeRequest(id: 99L)
-        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+        def service = recipeService
         def saved = Fixtures.recipe(id: 1L)
 
         when:
@@ -327,7 +337,7 @@ class RecipeServiceSpec extends Specification {
         given:
         RecipeRequest request = Fixtures.recipeRequest(id: 55L, aiGenerated: false)
         Recipe mapped = Fixtures.recipe(id: 77L, aiGenerated: true)
-        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+        def service = recipeService
 
         when:
         Recipe result = service.createRecipe(request, true)
@@ -344,15 +354,15 @@ class RecipeServiceSpec extends Specification {
 
     def "createBulk saves every mapped recipe"() {
         given:
-        RecipeRequest first = Fixtures.recipeRequest(title: 'One')
-        RecipeRequest second = Fixtures.recipeRequest(title: 'Two')
-        Recipe firstEntity = Fixtures.recipe(title: 'One')
+        RecipeRequest first = Fixtures.recipeRequest(title: 'One', cuisines: ['American'])
+        RecipeRequest second = Fixtures.recipeRequest(title: 'Two', cuisines: ['French'])
+        Recipe firstEntity = Fixtures.recipe(title: 'One', cuisines: ['American'])
         firstEntity.setEmbedding(new Double[0])
-        Recipe secondEntity = Fixtures.recipe(title: 'Two')
+        Recipe secondEntity = Fixtures.recipe(title: 'Two', cuisines: ['French'])
         secondEntity.setEmbedding(new Double[0])
 
         // Create a spy of the service to intercept the critical methods
-        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+        def service = recipeService
 
         // Set up proper mocking for the stream operations
         recipeMapper.toEntity(first) >> firstEntity
@@ -392,10 +402,10 @@ class RecipeServiceSpec extends Specification {
 
     def "update maps and persists existing recipe"() {
         given:
-        def request = Fixtures.recipeRequest(id: 42L, title: 'Updated Title')
-        def existing = Fixtures.recipe(id: 42L, title: 'Old Title')
+        def request = Fixtures.recipeRequest(id: 42L, title: 'Updated Title', cuisines: ['Italian'])
+        def existing = Fixtures.recipe(id: 42L, title: 'Old Title', cuisines: ['Italian'])
         existing.setEmbedding(new Double[0])
-        def mapped = Fixtures.recipe(id: 42L, title: 'Updated Title')
+        def mapped = Fixtures.recipe(id: 42L, title: 'Updated Title', cuisines: ['Italian'])
         mapped.setEmbedding(new Double[0])
 
         // Set up proper mocking for the repository and mapper
@@ -404,9 +414,8 @@ class RecipeServiceSpec extends Specification {
         recipeRepository.save(mapped) >> mapped
 
         when:
-        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper]) {
-            updateRecipe(_) >> mapped  // Mock the updateRecipe method to avoid NullPointerException
-        }
+        def service = Spy(recipeService)
+        service.updateRecipe(*_) >> mapped
         ResponseEntity<ApiResponse<Recipe>> response = service.update(request)
 
         then:
@@ -444,7 +453,7 @@ class RecipeServiceSpec extends Specification {
         def request = new EmbedUpdateRequest()
         request.setId(33L)
         request.setEmbedding([0.3d] as Double[])
-        def service = Spy(RecipeService, constructorArgs: [recipeRepository, recipeIngredientRepository, recipeMapper])
+        def service = recipeService
 
         when:
         ResponseEntity<ApiResponse<Object>> response = service.updateEmbeddingOnly(request)

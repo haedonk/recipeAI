@@ -16,16 +16,18 @@ public class RecipeDetailsDto {
         this.embedSummary = getFullSummary(instructions);
     }
 
-    public RecipeDetailsDto(String title, List<String> ingredients, String instructions, Long id) {
+    public RecipeDetailsDto(String title, List<String> ingredients, List<String> cuisines, String instructions, Long id) {
         this.id = id;
         this.title = title;
         this.instructions = instructions;
+        this.cuisines = cuisines;
         this.ingredients = ingredients;
         this.embedSummary = getFullSummary(instructions);
     }
 
     private Long id;
     private String title;
+    private List<String> cuisines;
     private List<String> ingredients;
     private String instructions;
     private String embedSummary;

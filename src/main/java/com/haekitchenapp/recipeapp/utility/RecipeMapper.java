@@ -24,6 +24,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.haekitchenapp.recipeapp.utility.QuantityUtils.floatToFraction;
+import static com.haekitchenapp.recipeapp.utility.QuantityUtils.fractionToFloat;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -64,7 +67,7 @@ public class RecipeMapper {
         RecipeIngredient ri = new RecipeIngredient();
         ri.setRecipe(recipe);
         ri.setIngredient(ingredient);
-        ri.setQuantity(convertQuantityToFloat(riRequest.getQuantity()));
+        ri.setQuantity(fractionToFloat(riRequest.getQuantity()));
 
         if(Objects.isNull(riRequest.getUnitId()) && Objects.isNull(riRequest.getUnitName())){
             throw new UnitNotFoundException("Unit ID and Unit Name cannot be null");
@@ -90,39 +93,6 @@ public class RecipeMapper {
         return ri;
     }
 
-    /**
-     * Converts a string quantity to float value, handling both fractions and decimals.
-     * @param quantity The quantity as a string (e.g., "1/2", "0.5", "2")
-     * @return The float value of the quantity, or 0.0f if parsing fails
-     */
-    public float convertQuantityToFloat(String quantity) {
-        if (quantity == null || quantity.trim().isEmpty() || "to taste".equalsIgnoreCase(quantity.trim())) {
-            return 0.0f;
-        }
-
-        quantity = quantity.trim();
-
-        try {
-            // Check if it's a fraction (contains /)
-            if (quantity.contains("/")) {
-                String[] parts = quantity.split("/");
-                if (parts.length == 2) {
-                    float numerator = Float.parseFloat(parts[0].trim());
-                    float denominator = Float.parseFloat(parts[1].trim());
-                    if (denominator == 0) {
-                        return 0.0f; // Avoid division by zero
-                    }
-                    return numerator / denominator;
-                }
-            }
-
-            // It's already a decimal or whole number
-            return Float.parseFloat(quantity);
-        } catch (NumberFormatException e) {
-            // If parsing fails, return 0
-            return 0.0f;
-        }
-    }
 
 
     public Recipe toEntity(Recipe recipe, RecipeRequest request) {
@@ -165,7 +135,7 @@ public class RecipeMapper {
         return new RecipeIngredientResponse(
                 ri.getId(),
                 ri.getIngredient().getName(),
-                raw ?  ri.getQuantity().toString() : normalizeQuantity(ri.getQuantity().toString()),
+                raw ?  ri.getQuantity().toString() : floatToFraction(ri.getQuantity()),
                 raw ?  ri.getQuantity() : null,
                 getUnit(ri.getUnitId())
         );
@@ -175,46 +145,20 @@ public class RecipeMapper {
         return unitService.getUnitNameById(unitId);
     }
 
-    private @NotBlank String normalizeQuantity(String quantity) {
-        double value = Double.parseDouble(quantity);
-
-        // If it's a whole number, return it as is
-        if (Math.floor(value) == value) {
-            return String.valueOf((int)value);
-        }
-
-        // Convert to a fraction and reduce
-        int precision = 1000; // Increased precision for better fraction approximation
-        int gcd = gcd((int)(value * precision), precision);
-        int numerator = (int)(value * precision) / gcd;
-        int denominator = precision / gcd;
-
-        // If the numerator is divisible by the denominator, return as whole number
-        if (numerator % denominator == 0) {
-            return String.valueOf(numerator / denominator);
-        } else {
-            return numerator + "/" + denominator;
-        }
-    }
-
-    /**
-     * Calculate the greatest common divisor (GCD) using Euclidean algorithm
-     * for reducing fractions to their simplest form.
-     *
-     * @param a First number
-     * @param b Second number
-     * @return The greatest common divisor
-     */
-    private int gcd(int a, int b) {
-        return b == 0 ? Math.abs(a) : gcd(b, a % b);
-    }
-
-    public RecipeDetailsDto toSimpleDto(RecipeSummaryProjection recipe, List<Long> ingredients, Long id) {
+    public RecipeDetailsDto toSimpleDto(RecipeSummaryProjection recipe, List<Long> ingredients, List<String> cuisines, Long id) {
 
         List<String> ingredientNames = ingredients.stream()
                 .map(ingredientService::getIngredientNameById).toList();
 
-        return new RecipeDetailsDto(recipe.getTitle(), ingredientNames, recipe.getInstructions(), id);
+        return new RecipeDetailsDto(recipe.getTitle(), ingredientNames, cuisines, recipe.getInstructions(), id);
+    }
+
+    public RecipeDetailsDto toDetailedDto(RecipeSummaryProjection recipe, List<Long> ingredients, List<String> cuisines, Long id) {
+
+        List<String> ingredientNames = ingredients.stream()
+                .map(ingredientService::getIngredientNameById).toList();
+
+        return new RecipeDetailsDto(recipe.getTitle(), ingredientNames, cuisines, recipe.getInstructions(), id);
     }
 
     public RecipeDetailsDto toLlmDetailsDto(Recipe recipe) {

@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -20,14 +22,26 @@ public class RecipeSimilarityDto {
         this.similarity = similarity;
     }
 
+    public RecipeSimilarityDto(Long id, String title, String summary, List<String> cuisines, Double similarity) {
+        this.id = id;
+        this.title = title;
+        this.summary = summary;
+        this.cuisines = cuisines;
+        this.similarity = similarity;
+    }
+
     private Long id;
     private String title;
     private String summary;
+    private List<String> cuisines;
     private Double similarity;
     private Double percentSimilarity;
     private int titleSimilarityRank = 0;
     private int similarityRank = 0;
+    private int cuisineMatchRank = 0;
     private int includesIngredientsCount = 0;
+    private boolean exactTitleMatch;
+    private boolean prefixTitleMatch;
 
     @Override
     public String toString() {
@@ -35,9 +49,12 @@ public class RecipeSimilarityDto {
                 "id=" + id +
                 ", title='" + title + '\'' +
                 ", summary='" + summary + '\'' +
+                ", cuisine='" + cuisines + '\'' +
                 ", similarity=" + similarity +
                 ", percentSimilarity=" + percentSimilarity +
+                ", titleSimilarityRank=" + titleSimilarityRank +
                 ", similarityRank=" + similarityRank +
+                ", cuisineMatchRank=" + cuisineMatchRank +
                 ", includesIngredientsCount=" + includesIngredientsCount +
                 '}';
     }

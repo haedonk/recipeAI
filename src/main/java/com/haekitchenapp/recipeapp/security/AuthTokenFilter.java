@@ -1,6 +1,5 @@
 package com.haekitchenapp.recipeapp.security;
 
-import com.haekitchenapp.recipeapp.service.UserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -63,7 +62,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");
-
+        log.debug("Authorization header: {}", headerAuth);
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
             return headerAuth.substring(7);
         }

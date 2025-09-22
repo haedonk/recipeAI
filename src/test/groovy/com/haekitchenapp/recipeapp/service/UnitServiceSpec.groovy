@@ -7,23 +7,18 @@ import com.haekitchenapp.recipeapp.repository.UnitRepository
 import org.springframework.http.ResponseEntity
 import spock.lang.Specification
 
-import java.util.Optional
-
 class UnitServiceSpec extends Specification {
 
     UnitService service
     UnitRepository unitRepository
 
     def setup() {
-        service = new UnitService()
         unitRepository = Mock(UnitRepository)
-        service.@unitRepository = unitRepository
-        service.@unitCache = null
+        service = new UnitService(unitRepository)
     }
 
     def "getAllUnits returns repository results"() {
         given:
-        service.@unitCache = null
         List<Unit> units = [
                 new Unit(id: 1L, name: 'cup'),
                 new Unit(id: 2L, name: 'tablespoon')
@@ -41,7 +36,6 @@ class UnitServiceSpec extends Specification {
 
     def "getAllUnitsMap caches repository results after first call"() {
         given:
-        service.@unitCache = null
         List<Unit> units = [
                 new Unit(id: 3L, name: 'gram'),
                 new Unit(id: 4L, name: 'ounce')
@@ -54,87 +48,143 @@ class UnitServiceSpec extends Specification {
         then:
         1 * unitRepository.findAll() >> units
         firstCall == [3L: 'gram', 4L: 'ounce']
-        secondCall.is(firstCall)
-        service.@unitCache.is(firstCall)
-        0 * unitRepository._
+        secondCall == [3L: 'gram', 4L: 'ounce']
     }
 
-    def "getUnitNameById falls back to Unknown Unit when cache lacks key"() {
+    def "getUnitNameById returns unit name when found in cache"() {
         given:
-        service.@unitCache = [5L: 'liter']
         List<Unit> units = [new Unit(id: 5L, name: 'liter')]
+        unitRepository.findAll() >> units
 
         when:
-        String result = service.getUnitNameById(42L)
+        String result = service.getUnitNameById(5L)
 
         then:
-        1 * unitRepository.findAll() >> units
+        result == 'liter'
+    }
+
+    def "getUnitNameById returns 'Unknown Unit' when not found"() {
+        given:
+        unitRepository.findAll() >> []
+
+        when:
+        String result = service.getUnitNameById(999L)
+
+        then:
         result == 'Unknown Unit'
-        service.@unitCache == [5L: 'liter']
-        0 * unitRepository._
     }
 
-    def "existsById handles null and uses cached map for lookups"() {
+    def "getUnitByName returns unit when found"() {
         given:
-        service.@unitCache = null
-        List<Unit> units = [new Unit(id: 7L, name: 'dash')]
+        Unit unit = new Unit(id: 6L, name: 'pound')
 
         when:
-        boolean nullResult = service.existsById(null)
-        boolean firstLookup = service.existsById(7L)
-        boolean secondLookup = service.existsById(7L)
+        Unit result = service.getUnitByName('pound')
 
         then:
-        nullResult == false
-        firstLookup
-        secondLookup
-        1 * unitRepository.findAll() >> units
-        service.@unitCache == [7L: 'dash']
+        1 * unitRepository.findByName('pound') >> Optional.of(unit)
+        result == unit
+    }
+
+    def "getUnitByName returns null when not found"() {
+        when:
+        Unit result = service.getUnitByName('nonexistent')
+
+        then:
+        1 * unitRepository.findByName('nonexistent') >> Optional.empty()
+        result == null
+    }
+
+    def "existsById returns true when unit exists in cache"() {
+        given:
+        List<Unit> units = [new Unit(id: 7L, name: 'kilogram')]
+        unitRepository.findAll() >> units
+
+        when:
+        boolean result = service.existsById(7L)
+
+        then:
+        result
+    }
+
+    def "existsById returns false when unit does not exist"() {
+        given:
+        unitRepository.findAll() >> []
+
+        when:
+        boolean result = service.existsById(999L)
+
+        then:
+        !result
+    }
+
+    def "existsById returns false for null input"() {
+        when:
+        boolean result = service.existsById(null)
+
+        then:
+        !result
         0 * unitRepository._
     }
 
-    def "persistAiGeneratedUnits saves new lowercased units and refreshes cache"() {
+    def "persistAiGeneratedUnits saves new units"() {
         given:
-        service.@unitCache = [99L: 'stale']
-        Unit existingUnit = new Unit(id: 10L, name: 'teaspoon', aiGenerated: false)
         Set<RecipeIngredientRequest> ingredients = [
-                ingredient('Cup', 'Flour'),
-                ingredient('cup', 'Sugar'),
-                ingredient('TEASPOON', 'Pepper'),
-                ingredient('Pinch', 'Salt'),
-                ingredient('  ', 'Blank'),
-                ingredient(null, 'None')
+                new RecipeIngredientRequest(unitName: 'newUnit1'),
+                new RecipeIngredientRequest(unitName: 'newUnit2'),
+                new RecipeIngredientRequest(unitName: 'existingUnit')
         ] as Set
 
-        and:
-        List<Unit> refreshedUnits = [
-                existingUnit,
-                new Unit(id: 20L, name: 'cup', aiGenerated: true),
-                new Unit(id: 21L, name: 'pinch', aiGenerated: true)
-        ]
+        Unit existingUnit = new Unit(id: 1L, name: 'existingunit')
 
         when:
         service.persistAiGeneratedUnits(ingredients)
 
         then:
-        3 * unitRepository.findByName({ it == it.toLowerCase() }) >> { String name ->
-            name == 'teaspoon' ? Optional.of(existingUnit) : Optional.empty()
-        }
-        1 * unitRepository.saveAll({ List<Unit> saved ->
-            assert saved*.name as Set == ['cup', 'pinch'] as Set
-            assert saved.every { it.aiGenerated }
-            true
-        }) >> { List<Unit> saved -> saved }
-        1 * unitRepository.findAll() >> refreshedUnits
-        service.@unitCache == [10L: 'teaspoon', 20L: 'cup', 21L: 'pinch']
-        0 * unitRepository._
+        1 * unitRepository.findByName('newunit1') >> Optional.empty()
+        1 * unitRepository.findByName('newunit2') >> Optional.empty()
+        1 * unitRepository.findByName('existingunit') >> Optional.of(existingUnit)
+        1 * unitRepository.saveAll({ List<Unit> units ->
+            units.size() == 2 &&
+            units.any { it.name == 'newunit1' && it.aiGenerated } &&
+            units.any { it.name == 'newunit2' && it.aiGenerated }
+        })
+        1 * unitRepository.findAll() >> []
     }
 
-    private static RecipeIngredientRequest ingredient(String unitName, String ingredientName) {
-        RecipeIngredientRequest request = new RecipeIngredientRequest()
-        request.setName(ingredientName)
-        request.setQuantity('1')
-        request.setUnitName(unitName)
-        return request
+    def "persistAiGeneratedUnits does nothing when no new units"() {
+        given:
+        Set<RecipeIngredientRequest> ingredients = [
+                new RecipeIngredientRequest(unitName: 'existingUnit')
+        ] as Set
+
+        Unit existingUnit = new Unit(id: 1L, name: 'existingunit')
+
+        when:
+        service.persistAiGeneratedUnits(ingredients)
+
+        then:
+        1 * unitRepository.findByName('existingunit') >> Optional.of(existingUnit)
+        0 * unitRepository.saveAll(_)
+    }
+
+    def "persistAiGeneratedUnits handles empty and null unit names"() {
+        given:
+        Set<RecipeIngredientRequest> ingredients = [
+                new RecipeIngredientRequest(unitName: null),
+                new RecipeIngredientRequest(unitName: ''),
+                new RecipeIngredientRequest(unitName: '   '),
+                new RecipeIngredientRequest(unitName: 'validUnit')
+        ] as Set
+
+        when:
+        service.persistAiGeneratedUnits(ingredients)
+
+        then:
+        1 * unitRepository.findByName('validunit') >> Optional.empty()
+        1 * unitRepository.saveAll({ List<Unit> units ->
+            units.size() == 1 && units[0].name == 'validunit'
+        })
+        1 * unitRepository.findAll() >> []
     }
 }

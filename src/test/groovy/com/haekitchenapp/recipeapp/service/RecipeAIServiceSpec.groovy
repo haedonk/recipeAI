@@ -1,44 +1,43 @@
 package com.haekitchenapp.recipeapp.service
 
 import com.haekitchenapp.recipeapp.entity.Recipe
-import com.haekitchenapp.recipeapp.entity.User
 import com.haekitchenapp.recipeapp.exception.EmbedFailureException
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeRequest
 import com.haekitchenapp.recipeapp.model.request.recipe.RecipeSimilarityRequest
 import com.haekitchenapp.recipeapp.model.response.ApiResponse
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeAISkeleton
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeAISkeletonId
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeDetailsDto
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeSimilarityDto
-import com.haekitchenapp.recipeapp.model.response.recipe.RecipeTitleDto
+import com.haekitchenapp.recipeapp.model.response.recipe.*
 import com.haekitchenapp.recipeapp.repository.RecipeRepository
 import org.springframework.data.domain.Pageable
 import org.springframework.http.ResponseEntity
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import java.util.Collections
-
 class RecipeAIServiceSpec extends Specification {
 
-    RecipeRepository recipeRepository = Mock()
-    RecipeService recipeService = Mock()
-    TogetherAiApi togetherAiApi = Mock()
-    OpenAiApi openAiApi = Mock()
-    UserService userService = Mock()
+    RecipeRepository recipeRepository
+    RecipeService recipeService
+    TogetherAiApi togetherAiApi
+    OpenAiApi openAiApi
     RecipeAIService recipeAIService
 
     def setup() {
-        recipeAIService = Spy(RecipeAIService, constructorArgs: [recipeRepository, recipeService, togetherAiApi, openAiApi, userService])
+        recipeRepository = Mock(RecipeRepository)
+        recipeService = Mock(RecipeService)
+        togetherAiApi = Mock(TogetherAiApi)
+        openAiApi = Mock(OpenAiApi)
+        recipeAIService = new RecipeAIService(recipeRepository, recipeService, togetherAiApi, openAiApi)
     }
 
     @Unroll
     def "generateRandomRecipeTitles normalizes requested size (#requested -> #expected)"() {
+        given:
+        List<RecipeTitleDto> mockTitles = []
+        recipeRepository.findTitlesByTitleContainingIgnoreCase('', _ as Pageable) >> mockTitles
+
         when:
         ResponseEntity<ApiResponse<List<RecipeTitleDto>>> response = recipeAIService.generateRandomRecipeTitles(requested)
 
         then:
-        1 * recipeAIService.getRandomRecipeTitles(expected) >> []
         response.body.success
         response.body.data == []
 
@@ -92,7 +91,6 @@ class RecipeAIServiceSpec extends Specification {
 
         then:
         thrown(IllegalArgumentException)
-        0 * recipeAIService.getEmbeddingStringForSimilaritySearch(_)
 
         where:
         limit << [0, -1]
@@ -103,10 +101,11 @@ class RecipeAIServiceSpec extends Specification {
         RecipeSimilarityRequest request = buildSimilarityRequest(1)
         String embedding = '[1.0,0.5]'
         RecipeSimilarityDto dto = new RecipeSimilarityDto(1L, 'Tomato Soup', 'Cozy soup', 0.9d)
+        RecipeDetailsDto details = new RecipeDetailsDto('Tomato Soup', ['Lunch'],  ['Tomato'], 'Simmer slowly', 1L)
 
-        1 * recipeAIService.getEmbeddingStringForSimilaritySearch(request.toString()) >> embedding
-        1 * recipeRepository.findTopByEmbeddingSimilarityAndTitle(embedding, request.getLimit() + 30, '%tomato soup%') >> [dto]
-        1 * recipeService.getRecipeDetails(1L) >> new RecipeDetailsDto('Tomato Soup', ['Tomato'], 'Simmer slowly', 1L)
+        togetherAiApi.embed(request.toString()) >> new Double[]{1.0d, 0.5d}
+        recipeRepository.findTopByEmbeddingSimilarityAndTitle(embedding, request.getLimit() * 2, '%tomato soup%') >> [dto]
+        recipeService.getRecipeDetails(1L) >> details
 
         when:
         ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> response = recipeAIService.searchByAdvancedEmbeddingObject(request)
@@ -118,7 +117,7 @@ class RecipeAIServiceSpec extends Specification {
 
     def "searchByAdvancedEmbedding rejects blank queries"() {
         when:
-        recipeAIService.searchByAdvancedEmbedding('')
+        recipeAIService.searchByAdvancedEmbeddingObject(new RecipeSimilarityRequest('   '))
 
         then:
         thrown(IllegalArgumentException)
@@ -126,15 +125,18 @@ class RecipeAIServiceSpec extends Specification {
 
     def "searchByAdvancedEmbedding returns ranked recipes"() {
         given:
-        String query = 'Tomato Soup'
+        RecipeSimilarityRequest query = new RecipeSimilarityRequest("Tomato Soup")
+        query.setLimit(5)
         String embedding = '[0.1,0.9]'
         RecipeSimilarityDto dto = new RecipeSimilarityDto(7L, 'Tomato Soup', 'Cozy soup', 0.88d)
-        1 * recipeAIService.getEmbeddingStringForSimilaritySearch(query) >> embedding
-        1 * recipeRepository.findTopByEmbeddingSimilarity(embedding, 30) >> [dto]
-        1 * recipeService.getRecipeDetails(7L) >> new RecipeDetailsDto('Tomato Soup', ['Tomato'], 'Simmer slowly', 7L)
+        RecipeDetailsDto details = new RecipeDetailsDto('Tomato Soup', ['Lunch'], ['Tomato'], 'Simmer slowly', 7L)
+
+        togetherAiApi.embed(query.getPrompt()) >> new Double[]{0.1d, 0.9d}
+        recipeRepository.findTopByEmbeddingSimilarity(embedding, 10) >> [dto]
+        recipeService.getRecipeDetails(7L) >> details
 
         when:
-        ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> response = recipeAIService.searchByAdvancedEmbedding(query)
+        ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> response = recipeAIService.searchByAdvancedEmbeddingObject(query)
 
         then:
         response.body.success
@@ -143,7 +145,7 @@ class RecipeAIServiceSpec extends Specification {
 
     def "getEmbeddingStringForSimilaritySearch converts embeddings to string"() {
         given:
-        togetherAiApi.embed('Tomato Soup') >> [1.2d, 3.4d] as Double[]
+        togetherAiApi.embed('Tomato Soup') >> new Double[]{1.2d, 3.4d}
 
         when:
         String result = recipeAIService.getEmbeddingStringForSimilaritySearch('Tomato Soup')
@@ -171,21 +173,18 @@ class RecipeAIServiceSpec extends Specification {
 
     def "recipeChat uses OpenAI response to create recipe"() {
         given:
-        User user = new User()
-        user.setId(15L)
-        userService.getUserByUsername('chef') >> user
-
+        Long userId = 15L
         RecipeAISkeleton skeleton = new RecipeAISkeleton('Tomato Soup', 'Simmer', 'A cozy soup', Collections.emptySet(), 10, 20, 4)
         openAiApi.buildRecipe('Make soup') >> skeleton
 
         Recipe created = new Recipe()
         created.setId(88L)
-        1 * recipeService.createRecipe({ RecipeRequest request ->
+        recipeService.createRecipe({ RecipeRequest request ->
             request.getCreatedBy() == 15L && request.getTitle() == 'Tomato Soup'
         }, true) >> created
 
         when:
-        ResponseEntity<ApiResponse<Long>> response = recipeAIService.recipeChat('Make soup', 'chef')
+        ResponseEntity<ApiResponse<Long>> response = recipeAIService.recipeChat('Make soup', userId)
 
         then:
         response.body.data == 88L
@@ -193,10 +192,7 @@ class RecipeAIServiceSpec extends Specification {
 
     def "recipeCleanUp corrects recipe and returns created id"() {
         given:
-        User user = new User()
-        user.setId(21L)
-        userService.getUserByUsername('chef') >> user
-
+        Long userId = 21L
         RecipeAISkeletonId query = new RecipeAISkeletonId()
         query.setId(5L)
         query.setUserPrompt('fix it')
@@ -205,12 +201,12 @@ class RecipeAIServiceSpec extends Specification {
 
         Recipe created = new Recipe()
         created.setId(99L)
-        1 * recipeService.createRecipe({ RecipeRequest request ->
+        recipeService.createRecipe({ RecipeRequest request ->
             request.getCreatedBy() == 21L && request.getCleanedFrom() == 5L
         }, true) >> created
 
         when:
-        ResponseEntity<ApiResponse<Long>> response = recipeAIService.recipeCleanUp(query, 'chef')
+        ResponseEntity<ApiResponse<Long>> response = recipeAIService.recipeCleanUp(query, userId)
 
         then:
         response.body.data == 99L

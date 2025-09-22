@@ -9,6 +9,7 @@ import com.haekitchenapp.recipeapp.model.response.ApiResponse;
 import com.haekitchenapp.recipeapp.model.response.recipe.*;
 import com.haekitchenapp.recipeapp.repository.RecipeIngredientRepository;
 import com.haekitchenapp.recipeapp.repository.RecipeRepository;
+import com.haekitchenapp.recipeapp.service.impl.RecipeCuisineServiceImpl;
 import com.haekitchenapp.recipeapp.utility.RecipeMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,8 @@ public class RecipeService {
     private final RecipeIngredientRepository recipeIngredientRepository;
 
     private final RecipeMapper recipeMapper;
+
+    private final RecipeCuisineServiceImpl recipeCuisineService;
 
 
     public ResponseEntity<ApiResponse<RecipeDuplicatesByTitleResponse>> findDuplicateTitles(int page) {
@@ -123,7 +126,16 @@ public class RecipeService {
         return CompletableFuture.completedFuture(recipeIngredientRepository.findIngredientIdsByRecipeId(id));
     }
 
-
+    @Async
+    public CompletableFuture<List<String>> getRecipeCuisines(Long id) {
+        try {
+            List<String> cuisines = recipeCuisineService.getCuisineNamesByRecipeId(id);
+            return CompletableFuture.completedFuture(cuisines);
+        } catch (Exception e) {
+            log.warn("No cuisines found for recipe ID {}: {}", id, e.getMessage());
+            return CompletableFuture.completedFuture(List.of());
+        }
+    }
 
     public ResponseEntity<ApiResponse<RecipeDetailsDto>> getRecipeDetailsResponse(Long id) throws RecipeNotFoundException {
         log.info("Finding recipe details by ID: {}", id);
@@ -138,23 +150,30 @@ public class RecipeService {
     public RecipeDetailsDto getRecipeDetails(Long id) {
         CompletableFuture<Optional<RecipeSummaryProjection>> simpleRecipeFuture = getSimpleRecipe(id);
         CompletableFuture<List<Long>> ingredientsFuture = getRecipeIngredients(id);
+        CompletableFuture<List<String>> cuisinesFuture = getRecipeCuisines(id);
+
         try {
-            CompletableFuture.allOf(simpleRecipeFuture, ingredientsFuture).get();
+            CompletableFuture.allOf(simpleRecipeFuture, ingredientsFuture, cuisinesFuture).get();
         } catch (InterruptedException | ExecutionException e) {
             log.error("Error fetching recipe details for ID {}: {}", id, e.getMessage());
             throw new RecipeNotFoundException(e.getMessage());
         }
+
         RecipeSummaryProjection recipeDetails;
         List<Long> recipeIngredients;
+        List<String> recipeCuisines;
+
         try {
             recipeDetails = simpleRecipeFuture.get()
                     .orElseThrow(() -> new RecipeNotFoundException("Recipe details not found with ID: " + id));
             recipeIngredients = ingredientsFuture.get();
+            recipeCuisines = cuisinesFuture.get();
         } catch (InterruptedException | ExecutionException e) {
             log.error("Error retrieving recipe details for ID {}: {}", id, e.getMessage());
             throw new RecipeNotFoundException(e.getMessage());
         }
-        return recipeMapper.toSimpleDto(recipeDetails, recipeIngredients, id);
+
+        return recipeMapper.toDetailedDto(recipeDetails, recipeIngredients, recipeCuisines, id);
     }
 
     /**

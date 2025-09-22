@@ -35,12 +35,6 @@ public class RecipeAIController {
         return recipeAIService.generateRandomRecipeTitles(count);
     }
 
-    @PostMapping("/searchSimilarity/string")
-    public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchRecipesByTitleSimilarity(@RequestBody @Valid String query) throws RecipeSearchFoundNoneException {
-        log.info("Received request to search recipes by query similarity: {}", query);
-        return recipeAIService.searchByAdvancedEmbedding(query);
-    }
-
     @PostMapping("/searchSimilarity/object")
     public ResponseEntity<ApiResponse<List<RecipeSimilarityDto>>> searchRecipesByTitleSimilarity(@RequestBody @Valid RecipeSimilarityRequest query) throws RecipeSearchFoundNoneException {
         log.info("Received request to search recipes by query similarity: {}", query);

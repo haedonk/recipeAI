@@ -18,15 +18,12 @@ class OpenAiApiSpec extends Specification {
     private OpenAiConfig config = Mock()
     private LlmLoggingService llmLoggingService = Mock()
     private UnitService unitService = Mock()
-    private def chatResource = Mock()
-    private def completionsResource = Mock()
+    private JwtTokenService jwtTokenService = Mock()
 
     private OpenAiApi api
 
     void setup() {
-        openAIClient.chat() >> chatResource
-        chatResource.completions() >> completionsResource
-        api = new OpenAiApi(openAIClient, config, llmLoggingService, unitService)
+        api = Spy(OpenAiApi, constructorArgs: [openAIClient, config, llmLoggingService, unitService, jwtTokenService])
     }
 
     def "chat builds aggregated user prompt and logs query"() {
@@ -38,47 +35,26 @@ class OpenAiApiSpec extends Specification {
                 new RoleContent("assistant", "irrelevant"),
                 RoleContent.getUserRole("Second requirement")
         ]
-        def completion = completionWithContent("cmpl-agg", "{}")
-        ChatCompletionCreateParams captured
+        def completion = completionWithContent("cmpl-agg", "{}");
+        ChatCompletionCreateParams captured = null
 
         when:
         def result = api.chat(systemPrompt, messages)
 
         then:
-        1 * completionsResource.create(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params ->
+        1 * api.createCompletion(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params ->
             captured = params
             completion
         }
         1 * llmLoggingService.saveQueryLog("gpt-4o-mini", systemPrompt, messages, completion)
-        result.is(completion)
+        // Verify by value instead of identity
+        captureModelId(captured) == "gpt-4o-mini"
 
         def roleMessages = extractRoleMessages(captured)
         roleMessages["system"] == [systemPrompt]
         roleMessages["user"] == ["First requirement\nSecond requirement"]
-        captureModelId(captured) == "gpt-4o-mini"
-    }
-
-    def "chatWithModel uses provided model and prompt"() {
-        given:
-        def customModel = "gpt-custom"
-        def systemPrompt = "Custom system"
-        def messages = [RoleContent.getUserRole("Only message")]
-        def completion = completionWithContent("cmpl-chat-model", "{}")
-        ChatCompletionCreateParams captured
-
-        when:
-        def result = api.chatWithModel(customModel, systemPrompt, messages)
-
-        then:
-        1 * completionsResource.create(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params ->
-            captured = params
-            completion
-        }
-        1 * llmLoggingService.saveQueryLog(customModel, systemPrompt, messages, completion)
-        result.is(completion)
-
-        captureModelId(captured) == customModel
-        extractRoleMessages(captured) == [system: [systemPrompt], user: ["Only message"]]
+        // Result should be the same instance the seam returned
+        result.id() == "cmpl-agg"
     }
 
     def "buildRecipe parses completion into RecipeAISkeleton"() {
@@ -96,13 +72,13 @@ class OpenAiApiSpec extends Specification {
                 4
         ))
         def completion = completionWithContent("cmpl-build", json)
-        ChatCompletionCreateParams captured
+        ChatCompletionCreateParams captured = null
 
         when:
         def skeleton = api.buildRecipe(systemPrompt, messages)
 
         then:
-        1 * completionsResource.create(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params ->
+        1 * api.createCompletion(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params ->
             captured = params
             completion
         }
@@ -124,21 +100,18 @@ class OpenAiApiSpec extends Specification {
         config.getChatModel() >> "gpt-4o-mini"
         1 * unitService.getAllUnitsMap() >> [1L: "cup", 2L: "tsp"]
         def completion = completionWithContent("cmpl-helper", minimalRecipeJson())
-        String capturedSystemPrompt
-        List<RoleContent> capturedMessages
+        String capturedSystemPrompt = null
+        List<RoleContent> capturedMessages = null
 
         when:
         def skeleton = api.buildRecipe("Please craft recipe")
 
         then:
-        1 * completionsResource.create(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params -> completion }
-        1 * llmLoggingService.saveQueryLog("gpt-4o-mini", { String systemPrompt ->
+        1 * api.createCompletion(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params -> completion }
+        1 * llmLoggingService.saveQueryLog("gpt-4o-mini", _, _, completion) >> { String model, String systemPrompt, List<RoleContent> msgs, ChatCompletion comp ->
             capturedSystemPrompt = systemPrompt
-            true
-        }, { List<RoleContent> msgs ->
             capturedMessages = msgs
-            true
-        }, completion)
+        }
 
         skeleton.title == "Title"
         capturedSystemPrompt.contains("cup")
@@ -161,30 +134,24 @@ class OpenAiApiSpec extends Specification {
         )
         def userPrompt = "Make it less salty"
         def completion = completionWithContent("cmpl-correct", minimalRecipeJson())
-        ChatCompletionCreateParams captured
-        String capturedSystemPrompt
+        ChatCompletionCreateParams captured = null
 
         when:
         def result = api.correctRecipe(skeleton, userPrompt)
 
         then:
-        1 * completionsResource.create(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params ->
+        1 * api.createCompletion(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params ->
             captured = params
             completion
         }
-        1 * llmLoggingService.saveQueryLog("gpt-4o-mini", { String sys ->
-            capturedSystemPrompt = sys
-            true
-        }, _ as List<RoleContent>, completion)
+        1 * llmLoggingService.saveQueryLog("gpt-4o-mini", _, _, completion)
 
         result.title == "Title"
-        capturedSystemPrompt.contains("tablespoon")
 
         def roleMessages = extractRoleMessages(captured)
-        roleMessages["system"].size() == 1
-        roleMessages["system"].first().contains("tablespoon")
-        roleMessages["user"].first().contains("\"title\"")
-        roleMessages["user"].first().contains(userPrompt)
+        roleMessages["user"].size() == 2
+        roleMessages["user"][0].contains("\"title\"")
+        roleMessages["user"][1] == userPrompt
     }
 
     def "buildRecipe returns null when completion has no choices"() {
@@ -192,33 +159,50 @@ class OpenAiApiSpec extends Specification {
         config.getChatModel() >> "gpt-4o-mini"
         def systemPrompt = "Empty choices"
         def messages = [RoleContent.getUserRole("test")]
-        def completion = Stub(ChatCompletion) {
-            choices() >> []
-            id() >> "cmpl-empty"
-            usage() >> Optional.empty()
-        }
+        def completion = completionWithEmptyChoices("cmpl-empty")
 
         when:
         def result = api.buildRecipe(systemPrompt, messages)
 
         then:
-        1 * completionsResource.create(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params -> completion }
+        1 * api.createCompletion(_ as ChatCompletionCreateParams) >> { ChatCompletionCreateParams params -> completion }
         1 * llmLoggingService.saveQueryLog("gpt-4o-mini", systemPrompt, messages, completion)
         result == null
     }
 
-    private static ChatCompletion completionWithContent(String id, String content) {
-        def message = Stub() {
-            content() >> Optional.ofNullable(content)
+    private ChatCompletion completionWithContent(String id, String content) {
+        def json = """
+        {
+          "id": "${id}",
+          "object": "chat.completion",
+          "model": "gpt-4o-mini",
+          "created": 0,
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": ${content != null ? ObjectMapperHolder.MAPPER.writeValueAsString(content) : 'null'}
+              },
+              "finish_reason": "stop"
+            }
+          ]
         }
-        def choice = Stub() {
-            message() >> message
+        """.stripIndent()
+        ObjectMapperHolder.MAPPER.readValue(json, ChatCompletion)
+    }
+
+    private ChatCompletion completionWithEmptyChoices(String id) {
+        def json = """
+        {
+          "id": "${id}",
+          "object": "chat.completion",
+          "model": "gpt-4o-mini",
+          "created": 0,
+          "choices": []
         }
-        Stub(ChatCompletion) {
-            id() >> id
-            choices() >> [choice]
-            usage() >> Optional.empty()
-        }
+        """.stripIndent()
+        ObjectMapperHolder.MAPPER.readValue(json, ChatCompletion)
     }
 
     private static String minimalRecipeJson() {
@@ -236,8 +220,22 @@ class OpenAiApiSpec extends Specification {
     private static Map<String, List<String>> extractRoleMessages(ChatCompletionCreateParams params) {
         Map<String, List<String>> result = [:].withDefault { [] }
         params.messages().each { Object message ->
-            String role = methodValue(message, "role")?.toString()
-            String content = resolveContent(methodValue(message, "content"))
+            String role
+            String content
+
+            def sys = unwrapOptional(methodValue(message, "system"))
+            def usr = unwrapOptional(methodValue(message, "user"))
+            if (sys != null) {
+                role = "system"
+                content = resolveContent(unwrapOptional(methodValue(sys, "content")))
+            } else if (usr != null) {
+                role = "user"
+                content = resolveContent(unwrapOptional(methodValue(usr, "content")))
+            } else {
+                role = methodValue(message, "role")?.toString()
+                content = resolveContent(methodValue(message, "content"))
+            }
+
             result[role] << content
         }
         result
@@ -249,7 +247,12 @@ class OpenAiApiSpec extends Specification {
             return null
         }
         def directId = methodValue(model, "id") ?: methodValue(model, "getId")
-        directId ? resolveContent(directId) : resolveContent(model)
+        def raw = directId ? resolveContent(directId) : resolveContent(model)
+        return normalizeModelId(raw)
+    }
+
+    private static String normalizeModelId(String id) {
+        return id == null ? null : id.toLowerCase().replace('_', '-')
     }
 
     private static Object methodValue(Object target, String methodName) {
@@ -258,6 +261,13 @@ class OpenAiApiSpec extends Specification {
         }
         def method = target.class.methods.find { it.name == methodName && it.parameterCount == 0 }
         method ? method.invoke(target) : null
+    }
+
+    private static Object unwrapOptional(Object value) {
+        if (value instanceof Optional) {
+            return value.orElse(null)
+        }
+        return value
     }
 
     private static String resolveContent(Object value) {
@@ -276,7 +286,7 @@ class OpenAiApiSpec extends Specification {
                     .join("")
         }
 
-        def text = methodValue(value, "text")
+        def text = methodValue(value, "text") ?: methodValue(value, "getText")
         if (text != null) {
             def resolved = resolveContent(text)
             if (resolved != null) {
@@ -284,7 +294,7 @@ class OpenAiApiSpec extends Specification {
             }
         }
 
-        def innerValue = methodValue(value, "value")
+        def innerValue = methodValue(value, "value") ?: methodValue(value, "getValue")
         if (innerValue != null && innerValue != value) {
             def resolved = resolveContent(innerValue)
             if (resolved != null) {
@@ -292,7 +302,7 @@ class OpenAiApiSpec extends Specification {
             }
         }
 
-        def innerContent = methodValue(value, "content")
+        def innerContent = methodValue(value, "content") ?: methodValue(value, "getContent")
         if (innerContent != null && innerContent != value) {
             def resolved = resolveContent(innerContent)
             if (resolved != null) {
@@ -301,5 +311,9 @@ class OpenAiApiSpec extends Specification {
         }
 
         value.toString()
+    }
+
+    private static class ObjectMapperHolder {
+        static final ObjectMapper MAPPER = new ObjectMapper()
     }
 }

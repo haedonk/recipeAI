@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,9 +50,9 @@ class LlmLoggingServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(llmQueryLogRepository.save(any(LlmQueryLog.class)))
+        lenient().when(llmQueryLogRepository.save(any(LlmQueryLog.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(llmPricingService.calculateAndUpdateQueryPrice(any()))
+        lenient().when(llmPricingService.calculateAndUpdateQueryPrice(any()))
                 .thenReturn(Optional.empty());
     }
 

@@ -103,8 +103,20 @@ class RecipeAIServiceSpec extends Specification {
         RecipeSimilarityDto dto = new RecipeSimilarityDto(1L, 'Tomato Soup', 'Cozy soup', 0.9d)
         RecipeDetailsDto details = new RecipeDetailsDto('Tomato Soup', ['Lunch'],  ['Tomato'], 'Simmer slowly', 1L)
 
+        // Mock the embedding
         togetherAiApi.embed(request.toString()) >> new Double[]{1.0d, 0.5d}
-        recipeRepository.findTopByEmbeddingSimilarityAndTitle(embedding, request.getLimit() * 2, '%tomato soup%') >> [dto]
+
+        // Mock the database call that's actually used in the code
+        def mockResults = [Stub(RecipeSimilarityView) {
+            getId() >> 1L
+            getTitle() >> 'Tomato Soup'
+            getSummary() >> 'Cozy soup'
+            getSimilarity() >> 0.9d
+            getCosineDistance() >> 0.1d
+        }]
+        recipeRepository.findTopByCosineWithTitle(embedding, request.getLimit() * 2, '%tomato soup%') >> mockResults
+
+        // Mock recipe details
         recipeService.getRecipeDetails(1L) >> details
 
         when:
@@ -128,11 +140,23 @@ class RecipeAIServiceSpec extends Specification {
         RecipeSimilarityRequest query = new RecipeSimilarityRequest("Tomato Soup")
         query.setLimit(5)
         String embedding = '[0.1,0.9]'
-        RecipeSimilarityDto dto = new RecipeSimilarityDto(7L, 'Tomato Soup', 'Cozy soup', 0.88d)
         RecipeDetailsDto details = new RecipeDetailsDto('Tomato Soup', ['Lunch'], ['Tomato'], 'Simmer slowly', 7L)
 
+        // Mock the embedding
         togetherAiApi.embed(query.getPrompt()) >> new Double[]{0.1d, 0.9d}
-        recipeRepository.findTopByEmbeddingSimilarity(embedding, 10) >> [dto]
+
+        // Mock all possible repository methods to ensure one is matched
+        def mockResults = [Stub(RecipeSimilarityView) {
+            getId() >> 7L
+            getTitle() >> 'Tomato Soup'
+            getSummary() >> 'Cozy soup'  // Ensure this isn't null
+            getSimilarity() >> 0.88d
+            getCosineDistance() >> 0.12d
+        }]
+        recipeRepository.findTopByCosineWithTitle(embedding, 10) >> mockResults
+        recipeRepository.findTopByCosine(embedding, 10) >> mockResults  // Add this line
+
+        // Ensure mock recipe details has non-null ingredients and cuisines
         recipeService.getRecipeDetails(7L) >> details
 
         when:
@@ -140,7 +164,9 @@ class RecipeAIServiceSpec extends Specification {
 
         then:
         response.body.success
-        response.body.data*.id == [7L]
+        response.body.data != null
+        response.body.data.size() == 1
+        response.body.data[0].id == 7L
     }
 
     def "getEmbeddingStringForSimilaritySearch converts embeddings to string"() {

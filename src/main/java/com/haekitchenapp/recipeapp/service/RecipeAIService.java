@@ -116,8 +116,10 @@ public class RecipeAIService {
         // Find recipes by embedding similarity
         long dbQueryStartTime = System.currentTimeMillis();
         List<RecipeSimilarityDto> recipes = titleFilter != null ?
-            recipeRepository.findTopByEmbeddingSimilarityAndTitle(embedding, dbLimit, titleFilter) :
-            recipeRepository.findTopByEmbeddingSimilarity(embedding, dbLimit);
+                recipeRepository.findTopByCosineWithTitle(embedding, dbLimit, titleFilter).stream().map(RecipeSimilarityDto::new).toList() :
+            recipeRepository.findTopByCosine(embedding, dbLimit).stream().map(RecipeSimilarityDto::new).toList();
+
+
         long dbQueryEndTime = System.currentTimeMillis();
         log.debug("Database similarity query took {} ms, found {} initial recipes", dbQueryEndTime - dbQueryStartTime, recipes.size());
 

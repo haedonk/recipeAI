@@ -30,13 +30,14 @@ public class OpenAiApi {
     private final OpenAiConfig config;
     private final LlmLoggingService llmLoggingService;
     private final UnitService unitService;
+    private final JwtTokenService jwtTokenService;
 
     // ---- Public API (same shape as before, now returns the SDK object) ----
 
     public ChatCompletion chat(String systemPrompt, List<RoleContent> messages) {
         ChatCompletionCreateParams params = buildParams(config.getChatModel(), systemPrompt, messages, false);
         log.info("OpenAI SDK Chat.create: model={}, messages={}", config.getChatModel(), messages.size());
-        ChatCompletion completion = openAIClient.chat().completions().create(params);
+        ChatCompletion completion = createCompletion(params);
         // Save log with separate system and user prompts
         llmLoggingService.saveQueryLog(config.getChatModel(), systemPrompt, messages, completion);
         return completion;
@@ -45,7 +46,7 @@ public class OpenAiApi {
     public RecipeAISkeleton buildRecipe(String systemPrompt, List<RoleContent> messages) throws JsonProcessingException {
         ChatCompletionCreateParams params = buildParams(config.getChatModel(), systemPrompt, messages, true);
         log.info("OpenAI SDK Chat.create: model={}, messages={}", config.getChatModel(), messages.size());
-        ChatCompletion completion = openAIClient.chat().completions().create(params);
+        ChatCompletion completion = createCompletion(params);
         log.info("Completion received: {}", completion);
         // Save log with separate system and user prompts
         llmLoggingService.saveQueryLog(config.getChatModel(), systemPrompt, messages, completion);
@@ -55,7 +56,7 @@ public class OpenAiApi {
     public RecipeAISkeleton correctRecipe(String systemPrompt, List<RoleContent> messages) throws JsonProcessingException {
         ChatCompletionCreateParams params = buildParams(config.getChatModel(), systemPrompt, messages, true);
         log.info("OpenAI SDK Chat.create: model={}, messages={}", config.getChatModel(), messages.size());
-        ChatCompletion completion = openAIClient.chat().completions().create(params);
+        ChatCompletion completion = createCompletion(params);
         log.info("Completion received: {}", completion);
         // Save log with separate system and user prompts
         llmLoggingService.saveQueryLog(config.getChatModel(), systemPrompt, messages, completion);
@@ -106,7 +107,7 @@ public class OpenAiApi {
     public ChatCompletion chat(List<RoleContent> messages) {
         ChatCompletionCreateParams params = buildParams(config.getChatModel(), null, messages, false);
         log.info("OpenAI SDK Chat.create: model={}, messages={}", config.getChatModel(), messages.size());
-        ChatCompletion completion = openAIClient.chat().completions().create(params);
+        ChatCompletion completion = createCompletion(params);
         // Use the version that takes systemPrompt and messages directly
         llmLoggingService.saveQueryLog(config.getChatModel(), null, messages, completion);
         return completion;
@@ -115,7 +116,7 @@ public class OpenAiApi {
     public ChatCompletion chatWithModel(String model, String systemPrompt, List<RoleContent> messages) {
         ChatCompletionCreateParams params = buildParams(model, systemPrompt, messages, false);
         log.info("OpenAI SDK Chat.create: model={}, messages={}", model, messages.size());
-        ChatCompletion completion = openAIClient.chat().completions().create(params);
+        ChatCompletion completion = createCompletion(params);
         // Use the version that takes systemPrompt and messages directly
         llmLoggingService.saveQueryLog(model, systemPrompt, messages, completion);
         return completion;
@@ -127,8 +128,6 @@ public class OpenAiApi {
         log.info("Building ChatCompletionCreateParams for model: {}, systemPrompt: {}, messages: {}",
                 modelId, (systemPrompt != null ? "[present]" : "[null]"), roleContents.size());
 
-        String userMessage = roleContents.stream().filter(RoleContent::isUserRole).map(RoleContent::getContent).reduce((a, b) -> a + "\n" + b).orElse(null);
-
         ChatCompletionCreateParams.Builder builder = ChatCompletionCreateParams.builder()
                 .model(resolveModel(modelId));
 
@@ -138,10 +137,28 @@ public class OpenAiApi {
                     .build());
         }
 
-        if (userMessage != null && !userMessage.isBlank()) {
-            builder.addMessage(ChatCompletionUserMessageParam.builder()
-                    .content(userMessage)
-                    .build());
+        // Add user messages
+        if (useRecipeResponseFormat) {
+            // Preserve each user message as a separate message (no aggregation)
+            roleContents.stream()
+                    .filter(RoleContent::isUserRole)
+                    .map(RoleContent::getContent)
+                    .filter(msg -> msg != null && !msg.isBlank())
+                    .forEach(msg -> builder.addMessage(ChatCompletionUserMessageParam.builder()
+                            .content(msg)
+                            .build()));
+        } else {
+            // Aggregate all user messages into a single message
+            String userMessage = roleContents.stream()
+                    .filter(RoleContent::isUserRole)
+                    .map(RoleContent::getContent)
+                    .reduce((a, b) -> a + "\n" + b)
+                    .orElse(null);
+            if (userMessage != null && !userMessage.isBlank()) {
+                builder.addMessage(ChatCompletionUserMessageParam.builder()
+                        .content(userMessage)
+                        .build());
+            }
         }
 
         if(useRecipeResponseFormat){
@@ -166,5 +183,10 @@ public class OpenAiApi {
         if (model == null) return true;
         String m = model.toLowerCase();
         return !(m.startsWith("gpt-5") || m.startsWith("o1") || m.startsWith("o3"));
+    }
+
+    // Package-private seam for easier testing
+    ChatCompletion createCompletion(ChatCompletionCreateParams params) {
+        return openAIClient.chat().completions().create(params);
     }
 }

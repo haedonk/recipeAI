@@ -22,12 +22,12 @@ public class RecipeSimilarityDto {
         this.similarity = similarity;
     }
 
-    public RecipeSimilarityDto(Long id, String title, String summary, List<String> cuisines, Double similarity) {
-        this.id = id;
-        this.title = title;
-        this.summary = summary;
-        this.cuisines = cuisines;
-        this.similarity = similarity;
+    public RecipeSimilarityDto(RecipeSimilarityView view) {
+        this.id = view.getId();
+        this.title = view.getTitle();
+        this.summary = view.getSummary();
+        this.similarity = view.getSimilarity();
+        this.cosineDistance = view.getCosineDistance();
     }
 
     private Long id;
@@ -35,6 +35,7 @@ public class RecipeSimilarityDto {
     private String summary;
     private List<String> cuisines;
     private Double similarity;
+    private Double cosineDistance;
     private Double percentSimilarity;
     private int titleSimilarityRank = 0;
     private int similarityRank = 0;
@@ -48,7 +49,7 @@ public class RecipeSimilarityDto {
         return "RecipeSimilarityDto{" +
                 "id=" + id +
                 ", title='" + title + '\'' +
-                ", summary='" + summary + '\'' +
+                ", summary='" + summary.substring(0, 25) + "..." + '\'' +
                 ", cuisine='" + cuisines + '\'' +
                 ", similarity=" + similarity +
                 ", percentSimilarity=" + percentSimilarity +

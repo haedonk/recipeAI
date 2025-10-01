@@ -50,7 +50,7 @@ public class Constant {
                     "  - Convert vulgar fractions (e.g., \"5/10\") to decimals, but still as a string (e.g., \"0.5\").\n" +
                     "  - Quantity must always be a string.\n" +
                     "  - Allowed units: %s\n" +
-                    "  - If no specific amount, set quantity to \"to taste\" and unit to null.\n" +
+                    "  - Never use '0' as a quantity. If an amount is unspecified or just a pinch/dash, set quantity to \"to taste\" and unit to null.\n" +
                     "- Instructions:\n" +
                     "  - Must be a single string with clear, step-by-step directions.\n" +
                     "  - Separate each step with a period.\n" +
@@ -77,7 +77,7 @@ public class Constant {
                     "  - Must cover every item mentioned in the instructions.\n" +
                     "  - Quantity must always be a string.\n" +
                     "  - Allowed units: %s\n" +
-                    "  - If no specific amount, set quantity to \"to taste\" and unit to null.\n" +
+                    "  - Never use '0' as a quantity. If an amount is unspecified or just a pinch/dash, set quantity to \"to taste\" and unit to null.\n" +
                     "- Instructions:\n" +
                     "  - Must be a single string with clear, step-by-step directions.\n" +
                     "  - Separate each step with a period.\n" +
